@@ -49,3 +49,19 @@ int main() {
 
 * **Apache (Thread-Per-Connection):** 10,000 connections = 10,000 OS threads = **80 GB of idle stack RAM** + massive context-switch thrashing.
 * **NGINX / FastAPI (Non-Blocking Event Loop):** 1 worker thread per CPU core multiplexes thousands of active sockets via OS `epoll`/`kqueue` with zero stack overhead.
+
+---
+
+## 5. Multiprocessing IPC Pickle Tax vs. C++ Shared Memory
+
+When transferring a **40 MB array (10,000,000 floats)** across workers:
+
+| Technique | Execution Time | Memory Overhead | Underlying Mechanism |
+| :--- | :--- | :--- | :--- |
+| **C++ Threads (Zero-Copy)** | **5 ms (0.005s)** | **0 MB extra** (Shared Heap) | Direct raw pointer (`float*`) with GIL released |
+| **Python `multiprocessing.Queue`** | **116 ms (0.116s)** | **+40 MB extra** (Duplicated) | Process spawn + Pickle serialization + OS Pipe syscalls |
+
+> [!IMPORTANT]
+> **The Rule for AI Systems:**  
+> Standard Python `multiprocessing.Queue` has a brutal **Pickle Serialization Tax**. High-performance distributed inference systems (like **vLLM multi-GPU**) avoid standard queues and use **POSIX Shared Memory (`shm_open` + `mmap`)** to share tensor memory across processes with zero copies.
+
