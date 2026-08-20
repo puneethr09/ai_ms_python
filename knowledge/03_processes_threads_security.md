@@ -14,7 +14,62 @@
 
 ---
 
-## 2. Real-World Systems Case Studies
+## 2. 💡 The Architecture "Light-Bulb" Moment: The `.so` in Memory
+
+```
+SINGLE PROCESS (FastAPI + C++ via dlopen):
+┌─────────────────────────────────────────────────────────┐
+│ Virtual Address Space (PID 87263)                       │
+│ ├── Stack & RSP (Hot in L1 Cache)                       │
+│ ├── mmap Region: engine.so (C++ Machine Code Loaded)    │
+│ └── Heap: [ 0x7FFF1000 (40 MB Array) ]                  │
+│               ▲                                         │
+│               │ Direct 8-byte pointer (Zero copies!)    │
+│  C++ Engine: ─┘ (Same Page Table! Same Process!)        │
+└─────────────────────────────────────────────────────────┘
+
+SEPARATE PROCESSES (Python multiprocessing):
+┌─────────────────────────────┐       ┌─────────────────────────────┐
+│ Process 1 (PID 87263)       │       │ Process 2 (PID 87264)       │
+│ ├── Page Table 1            │       │ ├── Page Table 2            │
+│ ├── Data: 0x7FFF1000        │       │ ├── 0x7FFF1000 is UNMAPPED! │
+│ └── GIL #1 (Locked)         │       │ └── GIL #2 (Locked)         │
+└─────────────────────────────┘       └─────────────────────────────┘
+  * Passing pointer 0x7FFF1000 to Process 2 causes a SEGFAULT!
+  * Process 2 has its own isolated Page Table and cannot touch Process 1's RAM.
+```
+
+---
+
+## 3. Why Multi-Process on Multi-GPU vs. C++ Threads?
+
+Why does PyTorch/vLLM use **multiple Python processes** for multi-GPU instead of just C++ threads?
+
+1. **CUDA Driver & GIL Independence:** Each GPU (GPU 0, GPU 1) is driven by its own Python process with its own independent GIL, eliminating interpreter contention.
+2. **The Data Center Rule (Threads Cannot Cross Network Cables!):**
+   * If you run a 70B model across **10 servers (80 GPUs total)**:
+   * **C++ Threads are trapped on 1 motherboard.** A thread on Server A cannot read RAM on Server B.
+   * **Processes can scale across the entire planet!** Using **NCCL (NVIDIA Collective Communications Library)** over InfiniBand networks, Process 0 on Server A talks to Process 79 on Server J identically to how it talks on local PCIe!
+
+---
+
+## 4. Web Traffic Scaling: From Async to Kubernetes (K8s)
+
+Look at the 3-Tier Scaling Pyramid for Web Servers:
+
+```
+Tier 1: Single Process Concurrency (FastAPI + asyncio)
+└── 1 Process multiplexes 10,000 idle sockets using 1 CPU core (epoll/kqueue).
+
+Tier 2: Multi-Process on 1 Server (Gunicorn / Uvicorn Workers)
+└── Spawns 8 Worker Processes across an 8-core CPU to use 100% of local server hardware.
+
+Tier 3: Distributed Multi-Server Containers (Docker + Kubernetes)
+└── Kubernetes (K8s) manages 50 Docker container processes across 10 physical cloud servers.
+└── Cloud Load Balancer (AWS ALB / NGINX) distributes incoming HTTP requests across all 50 containers!
+```
+> **Kubernetes is literally containerized multi-processing scaled across a data center!**
+
 
 ### 🌐 1. Google Chrome (Multi-Process Architecture)
 * **Design:** Each Browser Tab runs in its own isolated OS Process.
