@@ -158,3 +158,55 @@ m.def("compute_heavy", &compute_heavy_cpp,
 * **Constructor:** Calls CPython `PyEval_SaveThread()`, dropping the GIL mutex.
 * **Destructor:** Calls CPython `PyEval_RestoreThread()`, re-acquiring the GIL on return.
 * **Benefit:** Allows the FastAPI event loop to handle concurrent `/health` requests on other threads while C++ runs parallel math with zero blocking!
+
+---
+
+## 7. Real-World Live Debugging Gotchas & Battle Scars
+
+### ⚠️ Gotcha 1: The `PyGILState_Check()` Crash with `py::buffer`
+```text
+libc++abi: terminating due to uncaught exception of type std::runtime_error:
+pybind11::handle::dec_ref() PyGILState_Check() failure.
+```
+* **Why it Crashed:** When using `py::call_guard<py::gil_scoped_release>` on a function accepting `py::buffer b`, the GIL is dropped *before* the function runs. When the function exits, `b`'s destructor calls `Py_DECREF()` on the Python object **without holding the GIL**. Python crashes immediately to prevent GC memory corruption!
+* **The Fix (Scoped GIL Release):**
+  ```cpp
+  void double_array_zero_copy(py::buffer b) {
+      // 1. Request buffer info WHILE holding GIL:
+      py::buffer_info info = b.request();
+      float* raw_ptr = static_cast<float*>(info.ptr);
+      size_t count = info.shape[0];
+
+      // 2. Drop the GIL ONLY around the raw C++ pointer loop:
+      {
+          py::gil_scoped_release release; 
+          for (size_t i = 0; i < count; ++i) {
+              raw_ptr[i] *= 2.0f;
+          }
+      } // 3. GIL is automatically re-acquired BEFORE 'b' is destructed!
+  }
+  ```
+
+---
+
+### ⚠️ Gotcha 2: The `dlopen()` Process Caching Trap
+* **Symptom:** You recompiled `engine.cpp` to `engine.so`, but Python still reported `AttributeError: module 'engine' has no attribute 'double_array'`.
+* **Why:** Once an OS process calls `dlopen()` to load a shared library into memory, the dynamic linker **caches the loaded binary handle in RAM**. Modifying the file on disk has zero effect on the running process.
+* **The Rule:** You **must restart the server process (`Ctrl+C` and restart `uvicorn`)** after recompiling any C++ `.so` extension!
+
+---
+
+### 🎨 Gotcha 3: Python Decorators Demystified
+In Python, functions are first-class heap objects. A decorator is a higher-order wrapper function.
+
+```python
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+```
+* **What the Python interpreter physically executes:**
+  ```python
+  health_check = app.get("/health")(health_check)
+  ```
+* The `@app.get` decorator registers the `health_check` function pointer into FastAPI's URL routing hash map (`router["/health"] = health_check`) and sets up automatic JSON serialization for the return dictionary.
+
