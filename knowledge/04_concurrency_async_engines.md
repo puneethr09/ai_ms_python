@@ -65,3 +65,25 @@ When transferring a **40 MB array (10,000,000 floats)** across workers:
 > **The Rule for AI Systems:**  
 > Standard Python `multiprocessing.Queue` has a brutal **Pickle Serialization Tax**. High-performance distributed inference systems (like **vLLM multi-GPU**) avoid standard queues and use **POSIX Shared Memory (`shm_open` + `mmap`)** to share tensor memory across processes with zero copies.
 
+---
+
+## 6. How FastAPI Threads & C++ GIL Release Interact in Silicon
+
+Releasing the GIL does **not** create a new thread. FastAPI already maintains an Event Loop Thread and a Worker Thread Pool:
+
+```
+WITHOUT GIL Release (Server Freezes):
+Core 0 (Thread 1 - Event Loop): [ FROZEN waiting for GIL Mutex! ] ───┐ (Same Lock)
+Core 1 (Thread 2 - Worker Pool): [ Running C++ Math (Holds GIL!) ] ───┘
+
+WITH GIL Release (True Multi-Core Parallelism):
+Core 0 (Thread 1 - Event Loop): [ Grabs free GIL -> Returns /health in 0.001s! ]
+Core 1 (Thread 2 - Worker Pool): [ Runs C++ Math at 100% with NO GIL on Core 1! ]
+```
+
+1. **C++ Runs on the Same Thread:** The worker thread (Thread 2) jumps directly from Python bytecode into `engine.so` machine code.
+2. **`py::gil_scoped_release` Drops the Mutex:** Thread 2 surrenders the GIL lock while computing raw pointer math.
+3. **Event Loop Stays Free:** Thread 1 grabs the freed GIL to handle incoming network sockets on Core 0 with zero blocking latency.
+
+
+
