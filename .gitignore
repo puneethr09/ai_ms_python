@@ -207,6 +207,14 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Large ML Model weights & GGUF files (Never push to Git!)
+*.gguf
+*.bin
+*.onnx
+models/
+learn_projects/llama.cpp/build/
+learn_projects/llama.cpp/models/
+
 # Ruff stuff:
 .ruff_cache/
 
