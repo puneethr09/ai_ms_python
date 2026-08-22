@@ -15,6 +15,7 @@ The complete knowledge base is modularized into dedicated, deep-dive chapters:
 | 🔄 [**04. Concurrency & Async Engines**](file:///Users/puneeth/repo/ai_ms_python/knowledge/04_concurrency_async_engines.md) | Concurrency Models & Event Loops | Chef Analogy, C++20 `std::jthread`, Python GIL, Apache vs NGINX C10k |
 | 📦 [**05. Python Internals & Memory Models**](file:///Users/puneeth/repo/ai_ms_python/knowledge/05_python_internals_memory.md) | Python C-API & Buffer Protocols | `PyObject` anatomy, Refcounting vs Cyclic GC, `pymalloc`, Zero-Copy Buffers, `pybind11` |
 | 🚀 [**06. Inference Engineering Roadmap**](file:///Users/puneeth/repo/ai_ms_python/knowledge/06_inference_engineering_roadmap.md) | 5-Stage Hardware Blueprint | Mac $\to$ Raspi 5 $\to$ Colab CUDA $\to$ RTX 3090 Rig, Bandwidth Physics, PagedAttention |
+| 🗺️ [**Root Edge Lab Blueprint**](file:///Users/puneeth/repo/ai_ms_python/EDGE_LAB_BLUEPRINT.md) | Mac & Pi 5 Operational Plan | Pironman 5 setup, 1TB NVMe, AI Overwatcher, OLED telemetry, Tailscale Mesh |
 
 ---
 
@@ -46,8 +47,6 @@ Level 6: 🚀 5-Stage Inference Roadmap ──> [ 06_inference_engineering_roadm
 * 📂 [`learn_projects/smart_file_organizer/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/smart_file_organizer/): Project 1 CLI Organizer (`pathlib`, generators, POSIX rename).
 * 📂 [`learn_projects/hackernews_scraper/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hackernews_scraper/): Project 2 API Cruncher (`requests`, safe map reads, list comprehensions).
 * 📂 [`learn_projects/hybrid_api/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hybrid_api/): Project 3 FastAPI + C++ `pybind11` Zero-Copy Server (GIL release, contiguous buffers).
-* 🛠️ [**Hardware Lab Blueprint (`HARDWARE_LAB_BLUEPRINT.md`)**](file:///Users/puneeth/repo/ai_ms_python/HARDWARE_LAB_BLUEPRINT.md): Comprehensive operational guide for Raspberry Pi 5 (Overwatcher, OLED, Paperless, Adblocker), Local Mac (7B Coder Workstation), and Office RTX 3090.
-
 
 ---
 
