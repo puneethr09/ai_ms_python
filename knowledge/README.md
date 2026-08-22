@@ -46,6 +46,8 @@ Level 6: 🚀 5-Stage Inference Roadmap ──> [ 06_inference_engineering_roadm
 * 📂 [`learn_projects/smart_file_organizer/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/smart_file_organizer/): Project 1 CLI Organizer (`pathlib`, generators, POSIX rename).
 * 📂 [`learn_projects/hackernews_scraper/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hackernews_scraper/): Project 2 API Cruncher (`requests`, safe map reads, list comprehensions).
 * 📂 [`learn_projects/hybrid_api/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hybrid_api/): Project 3 FastAPI + C++ `pybind11` Zero-Copy Server (GIL release, contiguous buffers).
+* 🛠️ [**Hardware Lab Blueprint (`HARDWARE_LAB_BLUEPRINT.md`)**](file:///Users/puneeth/repo/ai_ms_python/HARDWARE_LAB_BLUEPRINT.md): Comprehensive operational guide for Raspberry Pi 5 (Overwatcher, OLED, Paperless, Adblocker), Local Mac (7B Coder Workstation), and Office RTX 3090.
+
 
 ---
 
