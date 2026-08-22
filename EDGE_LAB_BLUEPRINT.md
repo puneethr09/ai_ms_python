@@ -89,6 +89,22 @@
 * Blocks ads network-wide for all smart TVs, phones, and computers on home Wi-Fi.
 * Subnet routing allows secure access to all home LAN devices from anywhere.
 
+#### 6. 🌙 The "Night Shift & Day Shift" Indian Stock Fundamental Analyst
+* **The Problem Solved:** Running a heavy 7B model on a Pi 5 to read 50-page financial reports takes 4–5 minutes of CPU grinding (unusable for live chat) and consumes 4.68 GB of daytime RAM.
+* **🌙 The Night Shift (2:00 AM – 4:00 AM / Scheduled Cron):**
+  1. Pi 5 is 100% idle (zero active Plex streams or user requests).
+  2. Python script loads the **heavy Qwen 2.5 7B model** into RAM via `mmap()`.
+  3. Fetches 20 Indian stock watchlist tickers (`RELIANCE.NS`, `TCS.NS`, `HDFCBANK.NS`, `TATAMOTORS.NS`) via `yfinance` & BSE/NSE corporate filings.
+  4. Crunches quarterly financials, cash flow ratios, and earnings concall transcripts.
+  5. Stores structured markdown summaries and risk matrices in a local **SQLite database (`stocks.db`)**.
+  6. Calls `munmap()` to **completely unload the 7B model from RAM** before 6:00 AM!
+* **☀️ The Day Shift (Market Hours 9:00 AM – 3:30 PM IST):**
+  1. Loads the **ultra-fast Llama 3.2 1B model (770 MB RAM)**.
+  2. You send a query on your phone via Telegram: *"What were the key debt reduction updates for Tata Motors in the latest concall?"*
+  3. The 1B model retrieves the pre-computed overnight summary from `stocks.db`.
+  4. Responds to your phone in **`0.5 seconds` at `18 tokens/sec`**!
+* **Architectural Advantage:** Zero perceived latency, 0 MB of wasted daytime RAM, and gives you the **analytical depth of a 7B model with the instant speed of a 1B model**!
+
 ---
 
 ### 📊 Pi 5 RAM & Resource Allocation Budget (8 GB Total)
