@@ -1,0 +1,27 @@
+========================================================
+🚀 CUSTOM C++ LLM INFERENCE ENGINE (llama.h API)
+========================================================
+
+📦 Step 1: Loading GGUF Model via mmap()...
+   ✅ Model mapped in 413.35 ms!
+   📊 Vocabulary Size: 152064 tokens
+
+🔤 Step 2: Tokenizing Prompt: "Explain virtual memory in 1 sentence."
+   🔢 Token IDs generated: [ 840 20772 4108 4938 304 220 16 11652 13 ] (9 tokens)
+
+🧠 Step 3: Allocating Context & KV-Cache in RAM...
+   ✅ KV-Cache allocated for context size: 73
+
+⚡ Step 5: Running Prefill (Evaluating 9 tokens in parallel)...
+   ✅ Prefill completed in 2.92 ms (TTFT)!
+
+💬 Generated Output: 
+
+ Virtual memory is a computer memory management technique that allows a computer to use a combination of physical memory and disk space as a single memory pool.
+
+--------------------------------------------------------
+📊 Inference Performance Stats:
+   - Tokens Generated: 28
+   - Generation Time:  1.660 seconds
+   - Generation Speed: 16.87 tokens/second
+========================================================
