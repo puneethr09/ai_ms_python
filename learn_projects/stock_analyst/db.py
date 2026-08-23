@@ -1,12 +1,25 @@
+import os
 import sqlite3
 import json
 from datetime import datetime
 
-DB_PATH = "stocks.db"
+# Primary shared database path (mounted into Docker web app)
+DEFAULT_SHARED_PATH = "/home/puneeth/repo/stock_fundamental/data/stocks.db"
+LOCAL_PATH = "stocks.db"
+
+DB_PATH = DEFAULT_SHARED_PATH if os.path.exists(os.path.dirname(DEFAULT_SHARED_PATH)) else LOCAL_PATH
+
+def get_db_connection():
+    """Returns a connection to the primary SQLite database."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
     """Initializes the SQLite database schema for stock fundamental intelligence."""
-    conn = sqlite3.connect(DB_PATH)
+    # Ensure parent directory exists
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS stock_reports (
@@ -37,7 +50,8 @@ def _stringify_field(val) -> str:
 
 def save_stock_report(data: dict):
     """Inserts or updates a stock report in SQLite with safe type sanitization."""
-    conn = sqlite3.connect(DB_PATH)
+    init_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     verdict_str = _stringify_field(data.get("ai_verdict"))
@@ -67,8 +81,8 @@ def save_stock_report(data: dict):
 
 def get_stock_report(ticker: str) -> dict:
     """Retrieves the latest pre-computed report for a ticker."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    init_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM stock_reports WHERE ticker = ? OR ticker LIKE ?", (ticker, f"{ticker}%"))
     row = cursor.fetchone()
@@ -77,8 +91,8 @@ def get_stock_report(ticker: str) -> dict:
 
 def get_all_reports() -> list:
     """Retrieves all reports for a morning summary board."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    init_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT ticker, company_name, current_price, pe_ratio, ai_score, ai_verdict, updated_at FROM stock_reports ORDER BY ai_score DESC")
     rows = cursor.fetchall()
