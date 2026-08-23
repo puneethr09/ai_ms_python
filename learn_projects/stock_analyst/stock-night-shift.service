@@ -1,0 +1,14 @@
+[Unit]
+Description=Night Shift Indian Stock Fundamental Batch AI Valuation
+After=network-online.target llama-server.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=puneeth
+WorkingDirectory=/home/puneeth/repo/ai_ms_python/learn_projects/stock_analyst
+ExecStart=/bin/bash /home/puneeth/repo/ai_ms_python/learn_projects/stock_analyst/run_nightly.sh
+TimeoutStartSec=14400
+
+[Install]
+WantedBy=multi-user.target

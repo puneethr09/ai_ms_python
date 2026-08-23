@@ -1,0 +1,9 @@
+[Unit]
+Description=Timer for Night Shift Indian Stock Valuation (2:00 AM Daily)
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
