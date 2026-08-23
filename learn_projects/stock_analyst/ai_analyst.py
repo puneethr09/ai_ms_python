@@ -4,20 +4,17 @@ import json
 import logging
 import sqlite3
 import urllib.request
-import urllib.error
-
-logger = logging.getLogger("ai_analyst")
 
 try:
     from src.fetcher import fetch_indian_stock_data
 except ImportError:
-    from fetcher import fetch_indian_stock_data
+    try:
+        from fetcher import fetch_indian_stock_data
+    except ImportError:
+        fetch_indian_stock_data = lambda ticker: {}
 
-LLAMA_HOST_URLS = [
-    os.getenv("LLAMA_SERVER_URL", "http://172.17.0.1:8080/v1/chat/completions"),
-    "http://127.0.0.1:8080/v1/chat/completions",
-    "http://host.docker.internal:8080/v1/chat/completions"
-]
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("edge_ai_analyst")
 
 DB_PATHS = [
     "/app/data/stocks.db",
@@ -25,10 +22,23 @@ DB_PATHS = [
     "/home/puneeth/repo/ai_ms_python/learn_projects/stock_analyst/stocks.db"
 ]
 
-def calculate_institutional_score(financials: dict) -> int:
+LLAMA_HOST_URLS = [
+    "http://127.0.0.1:8080/v1/chat/completions",
+    "http://raspberrypi:8080/v1/chat/completions",
+    "http://localhost:8080/v1/chat/completions",
+    "http://100.79.28.51:8080/v1/chat/completions"
+]
+
+def calculate_institutional_score(financials: dict, dorsey_data: dict = None) -> int:
     """
-    Computes an objective, multi-factor institutional score (1-10)
-    combining Capital Efficiency, Balance Sheet Solvency, Pricing Power, and Valuation.
+    Multi-Factor institutional scoring model (1-10) incorporating:
+    - ROE & Capital Efficiency (0 to +3)
+    - Debt/Equity & Solvency (0 to +2)
+    - Operating Margin & Moat (0 to +1)
+    - Valuation Multiple / Margin of Safety (-2 to +2)
+    - Piotroski 9-Point F-Score (+1 or -1)
+    - Sloan Earnings Quality (+1 or -1)
+    - DuPont Return Engine (+1)
     """
     score = 5
 
@@ -71,6 +81,25 @@ def calculate_institutional_score(financials: dict) -> int:
         elif pe > 65.0:
             score -= 2
 
+    # 5. Quant Overlays from Dorsey/Quant data
+    if dorsey_data and isinstance(dorsey_data, dict):
+        p_score = dorsey_data.get("piotroski_f_score", {}).get("score")
+        if p_score is not None:
+            if p_score >= 7: score += 1
+            elif p_score <= 4: score -= 1
+
+        sloan_stat = dorsey_data.get("sloan_accrual", {}).get("status")
+        if sloan_stat == "EXCELLENT": score += 1
+        elif sloan_stat == "WARNING": score -= 1
+
+        dup_type = dorsey_data.get("dupont_analysis", {}).get("driver_type")
+        if dup_type in ["MOAT", "EFFICIENCY"]: score += 1
+
+        mos = dorsey_data.get("valuation", {}).get("combined", {}).get("margin_of_safety")
+        if mos is not None:
+            if mos >= 20.0: score += 1
+            elif mos <= -25.0: score -= 1
+
     return max(1, min(10, score))
 
 def get_cached_ai_report(ticker: str) -> dict:
@@ -95,9 +124,7 @@ def get_cached_ai_report(ticker: str) -> dict:
     return None
 
 def _extract_llm_fields(raw_text: str) -> dict:
-    """
-    Extracts structured fields from LLM response (supports JSON and Markdown formats).
-    """
+    """Extracts structured fields from LLM response (JSON and Markdown)."""
     raw_text = raw_text.strip()
 
     # Try JSON
@@ -119,7 +146,6 @@ def _extract_llm_fields(raw_text: str) -> dict:
 
     # Try Markdown Section Headers
     verdict, moat, risks = "", "", ""
-
     v_match = re.search(r"\*\*AI Verdict:?\*\*\s*(.+?)(?=\n\s*\*\*|\Z)", raw_text, re.DOTALL | re.IGNORECASE)
     if v_match:
         verdict = v_match.group(1).strip()
@@ -145,11 +171,8 @@ def _extract_llm_fields(raw_text: str) -> dict:
         "top_risks": "Market cyclicality, margin volatility, and macroeconomic sensitivity."
     }
 
-def query_live_edge_ai(financials: dict) -> dict:
-    """
-    Generates high-conviction, CFA-grade institutional equity research
-    using the local LLM on Raspberry Pi 5.
-    """
+def query_live_edge_ai(financials: dict, dorsey_data: dict = None) -> dict:
+    """Generates CFA-grade institutional equity research using the local LLM on Raspberry Pi 5."""
     ticker = financials.get("ticker", "UNKNOWN")
     company_name = financials.get("company_name", ticker)
     pe = financials.get("pe_ratio")
@@ -161,7 +184,7 @@ def query_live_edge_ai(financials: dict) -> dict:
     sector = financials.get("sector", "Indian Markets")
     industry = financials.get("industry", sector)
 
-    score = calculate_institutional_score(financials)
+    score = calculate_institutional_score(financials, dorsey_data=dorsey_data)
 
     pe_str = f"{pe}x" if pe is not None else "N/A"
     roe_str = f"{roe}%" if roe is not None else "N/A"
@@ -170,15 +193,38 @@ def query_live_edge_ai(financials: dict) -> dict:
     fcf_str = f"₹{fcf:,.1f} Cr" if fcf is not None else "N/A"
     price_str = f"₹{price}" if price is not None else "N/A"
 
+    # Extract quant overlays for prompt context
+    pio_str = "N/A"
+    dup_str = "N/A"
+    sloan_str = "N/A"
+    comb_str = "N/A"
+
+    if dorsey_data and isinstance(dorsey_data, dict):
+        p_val = dorsey_data.get("piotroski_f_score", {}).get("score")
+        if p_val is not None:
+            pio_str = f"{p_val}/9 ({dorsey_data.get('piotroski_f_score', {}).get('rating', '')})"
+        dup_summary = dorsey_data.get("dupont_analysis", {}).get("summary")
+        if dup_summary:
+            dup_str = dup_summary
+        sloan_val = dorsey_data.get("sloan_accrual", {}).get("assessment")
+        if sloan_val:
+            sloan_str = f"{sloan_val} ({dorsey_data.get('sloan_accrual', {}).get('accrual_ratio_pct', 0)}% accrual)"
+        c_val = dorsey_data.get("valuation", {}).get("combined", {}).get("combined_value")
+        mos_val = dorsey_data.get("valuation", {}).get("combined", {}).get("margin_of_safety")
+        if c_val is not None:
+            comb_str = f"₹{c_val} (Margin of Safety: {mos_val:+.1f}%)"
+
     user_prompt = (
         f"Institutional Equity Research Prompt for {company_name} ({ticker}):\n"
         f"Sector: {sector} | Industry: {industry}\n"
         f"• Market Price: {price_str} | Trailing P/E: {pe_str}\n"
         f"• Capital Efficiency (ROE): {roe_str} | Operating Margin: {margin_str}\n"
-        f"• Balance Sheet Solvency (Debt/Equity): {de_str} | Free Cash Flow: {fcf_str}\n\n"
+        f"• Balance Sheet Solvency (Debt/Equity): {de_str} | Free Cash Flow: {fcf_str}\n"
+        f"• Piotroski F-Score: {pio_str} | DuPont ROE Engine: {dup_str}\n"
+        f"• Sloan Earnings Quality: {sloan_str} | Combined Intrinsic Value: {comb_str}\n\n"
         f"Please write a top-tier institutional equity research assessment:\n"
-        f"**AI Verdict:** 2-3 analytical sentences evaluating whether the current P/E ({pe_str}) offers an asymmetric risk/reward entry given its {roe_str} ROE and free cash flow generation.\n"
-        f"**Moat Analysis:** 2-3 insightful sentences evaluating its economic moat (high switching costs, cost leadership, brand intangibles, or network effects) that sustain its {margin_str} operating margin in {industry}.\n"
+        f"**AI Verdict:** 2-3 analytical sentences evaluating whether current price ({price_str}) offers an asymmetric risk/reward entry relative to combined intrinsic value ({comb_str}), Piotroski score ({pio_str}), and cash flow generation.\n"
+        f"**Moat Analysis:** 2-3 insightful sentences evaluating its economic moat and DuPont return driver ({dup_str}) sustaining its {margin_str} operating margin in {industry}.\n"
         f"**Top Risks:** Exactly 2 detailed bullet points highlighting the biggest balance sheet, customer, or macro headwinds."
     )
 
@@ -210,19 +256,17 @@ def query_live_edge_ai(financials: dict) -> dict:
             logger.debug(f"AI host {url} failed: {e}")
             continue
 
-    # Clean deterministic fallback if LLM is offline
+    # Deterministic fallback
     return {
         "ai_score": score,
-        "ai_verdict": f"Fundamental valuation multiple stands at {pe_str} P/E with {roe_str} Return on Equity and {de_str} Debt/Equity leverage. (Real-time local LLM inference currently busy/offline).",
-        "moat_analysis": f"Operating margin of {margin_str} reflects competitive standing in the {industry} sector.",
-        "top_risks": f"• Leverage & Solvency: Debt-to-Equity ratio of {de_str}.\n• Margin Sensitivity: Exposure to operating cost inflation and industry cyclicality."
+        "ai_verdict": f"Combined intrinsic value stands at {comb_str} with {pe_str} P/E and {roe_str} ROE (Piotroski: {pio_str}). Local LLM inference busy.",
+        "moat_analysis": f"Operating margin of {margin_str} backed by {dup_str}.",
+        "top_risks": f"• Leverage & Solvency: Debt-to-Equity ratio of {de_str}.\n• Margin Sensitivity: Exposure to operating cost inflation and sector cyclicality."
     }
 
 def _save_to_cache(financials: dict, ai_result: dict):
     """Saves a live AI result back to stocks.db so subsequent visits are instant."""
     try:
-        import sqlite3
-        from datetime import datetime
         db_path = None
         for p in DB_PATHS:
             parent = os.path.dirname(p)
@@ -242,6 +286,7 @@ def _save_to_cache(financials: dict, ai_result: dict):
                 top_risks TEXT, updated_at TIMESTAMP
             )
         """)
+        from datetime import datetime
         cursor.execute("""
             INSERT OR REPLACE INTO stock_reports
             (ticker, company_name, sector, current_price, pe_ratio, debt_to_equity, roe,
@@ -280,9 +325,9 @@ def get_stock_ai_intelligence(ticker: str, company_name: str = None, dorsey_data
             "top_risks": "Macroeconomic and sector cyclicality."
         }
 
-    result = query_live_edge_ai(financials)
+    result = query_live_edge_ai(financials, dorsey_data=dorsey_data)
 
-    # 3. Auto-cache the result so next visit loads in 0.001s
+    # 3. Auto-cache the result
     _save_to_cache(financials, result)
 
     return result
