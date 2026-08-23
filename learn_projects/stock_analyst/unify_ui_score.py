@@ -5,7 +5,7 @@ def main():
     with open(target_path, 'r') as f:
         text = f.read()
 
-    start_marker = '<!-- ============================================================ -->\n    <!-- EDGE AI AUTONOMOUS VALUATION CARD (Raspberry Pi 5 ARM NEON) -->'
+    start_marker = '<!-- ============================================================ -->\n    <!-- MASTER COMPOSITE VERDICT HERO (ONE UNIFIED DEFINITIVE SCORE) -->'
     end_marker = '<!-- ============================================================ -->\n    <!-- MISTAKE WARNINGS -->'
 
     idx1 = text.find(start_marker)
@@ -100,6 +100,26 @@ def main():
     {% endif %}
 
     <!-- ============================================================ -->
+    <!-- SPECIAL SITUATION & STRUCTURAL ANOMALY CONTEXT -->
+    <!-- ============================================================ -->
+    {% if special_situation and special_situation.has_special_situation %}
+    <div class="alert alert-{{ special_situation.badge_color }} mb-4 p-3 shadow-sm animate-fade-in" style="border-radius: 10px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.08); color: #fde68a;">
+        <div class="d-flex align-items-center mb-1">
+            <strong style="font-size: 0.95rem; letter-spacing: 0.5px;"><i class="fas fa-lightbulb mr-2"></i>{{ special_situation.badge_title }}</strong>
+        </div>
+        <div style="font-size: 0.88rem; line-height: 1.45; color: #f3f4f6;">
+            {{ special_situation.description }}
+            {% if special_situation.holdco_adjustment and valuation.combined.gross_asset_value %}
+            <div class="mt-2 pt-2 border-top" style="border-color: rgba(255,255,255,0.12) !important;">
+                <strong>Gross Asset Value (GAV):</strong> <span class="text-white">₹{{ valuation.combined.gross_asset_value }}</span> &bull; 
+                <strong>HoldCo Market Target ({{ special_situation.holdco_adjustment.discount_percentage|round|int }}% Disc):</strong> <span class="text-warning font-weight-bold">₹{{ valuation.combined.combined_value }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ============================================================ -->
     <!-- CFA-GRADE EDGE AI QUALITATIVE RESEARCH SYNTHESIS -->
     <!-- ============================================================ -->
     {% if ai_report and ai_report.ai_verdict %}
@@ -162,7 +182,7 @@ def main():
     with open(target_path, 'w') as f:
         f.write(new_text)
 
-    print("Successfully replaced top section with Single Master Score Hero!")
+    print("Successfully injected Special Situation banner and unified top!")
 
 if __name__ == '__main__':
     main()

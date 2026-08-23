@@ -6,6 +6,7 @@ Implements:
 - Multi-Year Normalized Growth Calibration & Fundamental Reinvestment Rate
 - WACC-Based Scenario Modeling (Conservative, Base, Optimistic)
 - AlphaSpread-Style Combined Intrinsic Value (40% DCF + 60% Relative Multiples)
+- Holding Company (HoldCo) 55% Discount Adjustment Model
 - Greenwald's Earnings Power Value (EPV) & Peter Lynch PEG Valuation
 """
 
@@ -17,7 +18,8 @@ except ImportError:
 
 class ValuationAnalyzer:
     """
-    Comprehensive valuation engine blending fundamental DCF with market-based relative valuation.
+    Comprehensive valuation engine blending fundamental DCF with market-based relative valuation
+    and holding company arbitrage detection.
     """
 
     # Sector Cost of Equity Risk Adjustments (India Market Context)
@@ -53,16 +55,14 @@ class ValuationAnalyzer:
     DEFAULT_MULTIPLES = {"pe": 23, "ev_ebitda": 12, "pb": 3, "ps": 2.5}
 
     def __init__(self, ticker):
+        self.ticker = ticker
         self.data_engine = SmartDataEngine(ticker)
         # Base Cost of Equity & Long-Term Terminal Growth for India (7.1% Rf + 6.4% ERP)
         self.base_cost_of_equity = 0.135
         self.terminal_growth = 0.050
 
     def _calculate_wacc(self):
-        """
-        Calculates Weighted Average Cost of Capital (WACC).
-        WACC = (E/V * Re) + (D/V * Rd * (1 - Tc))
-        """
+        """Calculates Weighted Average Cost of Capital (WACC)."""
         if not self.data_engine.has_data:
             return self.base_cost_of_equity
 
@@ -88,31 +88,24 @@ class ValuationAnalyzer:
         return max(0.08, min(wacc, 0.18))
 
     def _calculate_best_growth(self, growth_cap=0.18):
-        """
-        Calculates multi-year normalized CAGR and fundamental reinvestment rate.
-        Prevents single-year cyclical dips from distorting the valuation.
-        """
+        """Calculates multi-year normalized CAGR and fundamental reinvestment rate."""
         if not self.data_engine.has_data:
             return 0.08
 
         growth_candidates = []
 
-        # 1. Multi-Year Revenue CAGR
         rev_cagr = self.data_engine.calculate_multi_year_cagr(self.data_engine.financials, "Total Revenue", max_years=3)
         if rev_cagr and rev_cagr > 0:
             growth_candidates.append(("Revenue_3Y", rev_cagr))
 
-        # 2. Multi-Year Operating Income CAGR
         op_cagr = self.data_engine.calculate_multi_year_cagr(self.data_engine.financials, "Operating Income", max_years=3)
         if op_cagr and op_cagr > 0:
             growth_candidates.append(("OpIncome_3Y", op_cagr))
 
-        # 3. Multi-Year Net Income CAGR
         ni_cagr = self.data_engine.calculate_multi_year_cagr(self.data_engine.financials, "Net Income", max_years=3)
         if ni_cagr and ni_cagr > 0:
             growth_candidates.append(("NetIncome_3Y", ni_cagr))
 
-        # 4. Fundamental Sustainable Growth = ROE * Retention Rate
         roe_dec = (self.data_engine.info.get("returnOnEquity") or 0.15)
         payout = (self.data_engine.info.get("payoutRatio") or 0.40)
         retention = max(0.10, min(1.0 - payout, 0.90))
@@ -269,14 +262,12 @@ class ValuationAnalyzer:
         values = []
         methods_used = []
 
-        # 1. P/E Fair Value
         if eps > 0 and multiples.get("pe"):
             sector_pe = multiples["pe"]
             pe_fair_value = eps * sector_pe
             values.append(pe_fair_value)
             methods_used.append(f"P/E: {sector_pe:.1f}x → ₹{pe_fair_value:.0f}")
 
-        # 2. EV/EBITDA Fair Value
         if ebitda > 0 and shares > 0 and multiples.get("ev_ebitda"):
             sector_ev_ebitda = multiples["ev_ebitda"]
             fair_ev = ebitda * sector_ev_ebitda
@@ -286,7 +277,6 @@ class ValuationAnalyzer:
                 values.append(ev_fair_value)
                 methods_used.append(f"EV/EBITDA: {sector_ev_ebitda}x → ₹{ev_fair_value:.0f}")
 
-        # 3. P/B Fair Value (Financials)
         if book_value > 0 and multiples.get("pb") and "financial" in sector:
             sector_pb = multiples["pb"]
             pb_fair_value = book_value * sector_pb
@@ -308,7 +298,7 @@ class ValuationAnalyzer:
 
     def get_combined_intrinsic_value(self):
         """
-        AlphaSpread-style blended valuation:
+        AlphaSpread-style blended valuation with HoldCo Arbitrage Discount integration:
         Intrinsic Value = (DCF Value × 40%) + (Relative Value × 60%)
         """
         dcf_data = self.get_valuation_scenarios()
@@ -332,6 +322,27 @@ class ValuationAnalyzer:
         else:
             return {"combined_value": current_price, "margin_of_safety": 0, "verdict": "FAIRLY VALUED"}
 
+        # -------------------------------------------------------------
+        # HOLDING COMPANY (HOLDCO) DISCOUNT ADJUSTMENT
+        # -------------------------------------------------------------
+        gross_asset_val = combined
+        is_holdco = False
+        holdco_discount_pct = 0.0
+
+        try:
+            from src.anomaly_detector import AnomalyDetector
+            ad = AnomalyDetector(self.ticker)
+            situations = ad.detect_special_situations()
+            if situations.get("situation_type") == "HOLDING_COMPANY":
+                is_holdco = True
+                h_adj = situations.get("holdco_adjustment", {})
+                factor = h_adj.get("discount_factor", 0.45)
+                holdco_discount_pct = h_adj.get("discount_percentage", 55.0)
+                combined = gross_asset_val * factor
+                weighting = f"HoldCo Adjusted ({holdco_discount_pct:.0f}% Discount) | Gross Asset Value: ₹{gross_asset_val:,.0f}"
+        except Exception:
+            pass
+
         margin_of_safety = 0
         verdict = "HOLD"
 
@@ -345,6 +356,9 @@ class ValuationAnalyzer:
 
         return {
             "combined_value": round(combined, 2),
+            "gross_asset_value": round(gross_asset_val, 2) if is_holdco else None,
+            "is_holdco": is_holdco,
+            "holdco_discount_pct": holdco_discount_pct if is_holdco else 0.0,
             "dcf_value": round(dcf_val, 2) if dcf_val else None,
             "relative_value": round(rel_val, 2) if rel_val else None,
             "weighting": weighting,

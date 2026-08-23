@@ -39,6 +39,7 @@ def calculate_institutional_score(financials: dict, dorsey_data: dict = None) ->
     - Piotroski 9-Point F-Score (+1 or -1)
     - Sloan Earnings Quality (+1 or -1)
     - DuPont Return Engine (+1)
+    - Special Situation Adjustment (+1 or -1)
     """
     score = 5
 
@@ -99,6 +100,11 @@ def calculate_institutional_score(financials: dict, dorsey_data: dict = None) ->
         if mos is not None:
             if mos >= 20.0: score += 1
             elif mos <= -25.0: score -= 1
+
+        # Special situation boost (e.g. HoldCo arbitrage)
+        ss = dorsey_data.get("special_situation", {})
+        if ss.get("situation_type") == "HOLDING_COMPANY":
+            score = max(score, 7)  # HoldCos with massive GAV are deep value
 
     return max(1, min(10, score))
 
@@ -193,11 +199,12 @@ def query_live_edge_ai(financials: dict, dorsey_data: dict = None) -> dict:
     fcf_str = f"₹{fcf:,.1f} Cr" if fcf is not None else "N/A"
     price_str = f"₹{price}" if price is not None else "N/A"
 
-    # Extract quant overlays for prompt context
+    # Extract quant overlays and special situations
     pio_str = "N/A"
     dup_str = "N/A"
     sloan_str = "N/A"
     comb_str = "N/A"
+    special_sit_str = "Standard Operating Company"
 
     if dorsey_data and isinstance(dorsey_data, dict):
         p_val = dorsey_data.get("piotroski_f_score", {}).get("score")
@@ -213,6 +220,10 @@ def query_live_edge_ai(financials: dict, dorsey_data: dict = None) -> dict:
         mos_val = dorsey_data.get("valuation", {}).get("combined", {}).get("margin_of_safety")
         if c_val is not None:
             comb_str = f"₹{c_val} (Margin of Safety: {mos_val:+.1f}%)"
+        
+        ss = dorsey_data.get("special_situation", {})
+        if ss.get("has_special_situation"):
+            special_sit_str = f"{ss.get('badge_title')}: {ss.get('description')}"
 
     user_prompt = (
         f"Institutional Equity Research Prompt for {company_name} ({ticker}):\n"
@@ -220,12 +231,13 @@ def query_live_edge_ai(financials: dict, dorsey_data: dict = None) -> dict:
         f"• Market Price: {price_str} | Trailing P/E: {pe_str}\n"
         f"• Capital Efficiency (ROE): {roe_str} | Operating Margin: {margin_str}\n"
         f"• Balance Sheet Solvency (Debt/Equity): {de_str} | Free Cash Flow: {fcf_str}\n"
+        f"• Structural Profile: {special_sit_str}\n"
         f"• Piotroski F-Score: {pio_str} | DuPont ROE Engine: {dup_str}\n"
         f"• Sloan Earnings Quality: {sloan_str} | Combined Intrinsic Value: {comb_str}\n\n"
         f"Please write a top-tier institutional equity research assessment:\n"
-        f"**AI Verdict:** 2-3 analytical sentences evaluating whether current price ({price_str}) offers an asymmetric risk/reward entry relative to combined intrinsic value ({comb_str}), Piotroski score ({pio_str}), and cash flow generation.\n"
+        f"**AI Verdict:** 2-3 analytical sentences evaluating whether current price ({price_str}) offers an asymmetric risk/reward entry relative to intrinsic value ({comb_str}), special structural profile ({special_sit_str}), and cash flow generation.\n"
         f"**Moat Analysis:** 2-3 insightful sentences evaluating its economic moat and DuPont return driver ({dup_str}) sustaining its {margin_str} operating margin in {industry}.\n"
-        f"**Top Risks:** Exactly 2 detailed bullet points highlighting the biggest balance sheet, customer, or macro headwinds."
+        f"**Top Risks:** Exactly 2 detailed bullet points highlighting the biggest balance sheet, holding company discount, cyclicality, or macro headwinds."
     )
 
     system_prompt = (
@@ -259,9 +271,9 @@ def query_live_edge_ai(financials: dict, dorsey_data: dict = None) -> dict:
     # Deterministic fallback
     return {
         "ai_score": score,
-        "ai_verdict": f"Combined intrinsic value stands at {comb_str} with {pe_str} P/E and {roe_str} ROE (Piotroski: {pio_str}). Local LLM inference busy.",
+        "ai_verdict": f"Combined intrinsic value stands at {comb_str} with {pe_str} P/E and {roe_str} ROE ({special_sit_str}). Local LLM inference busy.",
         "moat_analysis": f"Operating margin of {margin_str} backed by {dup_str}.",
-        "top_risks": f"• Leverage & Solvency: Debt-to-Equity ratio of {de_str}.\n• Margin Sensitivity: Exposure to operating cost inflation and sector cyclicality."
+        "top_risks": f"• Leverage & Solvency: Debt-to-Equity ratio of {de_str}.\n• Structural Risk: {special_sit_str}"
     }
 
 def _save_to_cache(financials: dict, ai_result: dict):
