@@ -1,0 +1,15 @@
+[Unit]
+Description=Llama.cpp Local Inference Server (Port 8080)
+After=network.target
+
+[Service]
+Type=simple
+User=puneeth
+WorkingDirectory=/home/puneeth/repo/ai_ms_python/learn_projects/llama.cpp
+ExecStart=/home/puneeth/repo/ai_ms_python/learn_projects/llama.cpp/build/bin/llama-server -m models/Llama-3.2-1B-Instruct-Q4_K_M.gguf --port 8080 --host 0.0.0.0 -t 4 -c 2048
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

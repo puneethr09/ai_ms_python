@@ -217,6 +217,9 @@ models/
 learn_projects/llama.cpp/
 learn_projects/llama.cpp/build/
 learn_projects/llama.cpp/models/
+*.db
+*.sqlite
+*.sqlite3
 
 # Ruff stuff:
 .ruff_cache/
