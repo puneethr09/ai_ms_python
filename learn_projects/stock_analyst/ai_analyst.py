@@ -218,9 +218,54 @@ def query_live_edge_ai(financials: dict) -> dict:
         "top_risks": f"• Leverage & Solvency: Debt-to-Equity ratio of {de_str}.\n• Margin Sensitivity: Exposure to operating cost inflation and industry cyclicality."
     }
 
+def _save_to_cache(financials: dict, ai_result: dict):
+    """Saves a live AI result back to stocks.db so subsequent visits are instant."""
+    try:
+        import sqlite3
+        from datetime import datetime
+        db_path = None
+        for p in DB_PATHS:
+            parent = os.path.dirname(p)
+            if os.path.exists(parent):
+                db_path = p
+                break
+        if not db_path:
+            return
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_reports (
+                ticker TEXT PRIMARY KEY, company_name TEXT, sector TEXT,
+                current_price REAL, pe_ratio REAL, debt_to_equity REAL, roe REAL,
+                ai_score INTEGER, ai_verdict TEXT, moat_analysis TEXT,
+                top_risks TEXT, updated_at TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            INSERT OR REPLACE INTO stock_reports
+            (ticker, company_name, sector, current_price, pe_ratio, debt_to_equity, roe,
+             ai_score, ai_verdict, moat_analysis, top_risks, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            financials.get("ticker"), financials.get("company_name"), financials.get("sector"),
+            financials.get("current_price"), financials.get("pe_ratio"),
+            financials.get("debt_to_equity"), financials.get("roe"),
+            ai_result.get("ai_score"),
+            str(ai_result.get("ai_verdict", "")),
+            str(ai_result.get("moat_analysis", "")),
+            str(ai_result.get("top_risks", "")),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        conn.commit()
+        conn.close()
+        logger.info(f"Cached AI report for {financials.get('ticker')} to {db_path}")
+    except Exception as e:
+        logger.debug(f"Cache save failed: {e}")
+
 def get_stock_ai_intelligence(ticker: str, company_name: str = None, dorsey_data: dict = None) -> dict:
     """Main entry point for Flask web views."""
-    # 1. Check pre-computed cache first
+    # 1. Check pre-computed cache first (instant: 0.001s)
     cached = get_cached_ai_report(ticker)
     if cached and cached.get("ai_verdict"):
         return cached
@@ -235,4 +280,9 @@ def get_stock_ai_intelligence(ticker: str, company_name: str = None, dorsey_data
             "top_risks": "Macroeconomic and sector cyclicality."
         }
 
-    return query_live_edge_ai(financials)
+    result = query_live_edge_ai(financials)
+
+    # 3. Auto-cache the result so next visit loads in 0.001s
+    _save_to_cache(financials, result)
+
+    return result
