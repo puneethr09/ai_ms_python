@@ -1,12 +1,13 @@
 """
-Autonomous Anomaly & Special Situation Engine
+Autonomous Anomaly & Special Situation Engine + Dynamic Business Archetype Classifier
 
-Identifies and adjusts for structural distortions in Indian equity analysis:
-1. Holding Companies (HoldCo Discount Model)
-2. Multi-Segment Conglomerates (SOTP Recognition)
-3. Commodity & Cyclicals (Shiller CAPE Normalized Mid-Cycle Earnings)
-4. Non-Operating One-Time Exceptional Gain Stripping
-5. New-Age High-Growth Internet Platforms (P/S Multiple Model)
+Identifies:
+1. Business Archetype (Perpetual Compounder vs Cyclical Commodity vs Financial Institution)
+2. Holding Companies (HoldCo Discount Model)
+3. Multi-Segment Conglomerates (SOTP Recognition)
+4. Commodity & Cyclicals (Shiller CAPE Normalized Mid-Cycle Earnings)
+5. Non-Operating One-Time Exceptional Gain Stripping
+6. New-Age High-Growth Internet Platforms (P/S Multiple Model)
 """
 
 try:
@@ -17,8 +18,8 @@ except ImportError:
 
 class AnomalyDetector:
     """
-    Forensic classifier for detecting special corporate structures,
-    holding company arbitrage, cyclical earnings peaks, and accounting distortions.
+    Forensic classifier for detecting business archetypes, corporate holding structures,
+    cyclical earnings peaks, and accounting distortions.
     """
 
     # Verified Indian Holding Companies (HoldCos)
@@ -57,18 +58,65 @@ class AnomalyDetector:
         }
     }
 
-    # Cyclical / Commodity Sectors
-    CYCLICAL_SECTORS = ["basic materials", "metals", "mining", "steel", "chemical", "fertilizer", "shipping", "cement"]
+    # Archetype Sector Classifications
+    CYCLICAL_SECTORS = ["basic materials", "metals", "mining", "steel", "chemical", "fertilizer", "shipping", "cement", "oil & gas"]
+    COMPOUNDER_SECTORS = ["technology", "consumer defensive", "healthcare", "consumer cyclical", "fmcg", "pharmaceuticals", "specialty retail"]
+    FINANCIAL_SECTORS = ["financial services", "banking", "insurance", "capital markets", "nbfc"]
 
     def __init__(self, ticker):
         self.ticker = ticker
         self.data_engine = SmartDataEngine(ticker)
+
+    def get_business_archetype(self):
+        """
+        Classifies business into one of four institutional archetypes
+        and returns dynamic scorecard weights.
+        """
+        sector = (self.data_engine.info.get("sector", "") or "").lower()
+        industry = (self.data_engine.info.get("industry", "") or "").lower()
+
+        if any(f in sector or f in industry for f in self.FINANCIAL_SECTORS):
+            return {
+                "type": "FINANCIAL_INSTITUTION",
+                "name": "🏦 Financial Institution",
+                "badge_color": "info",
+                "description": "Banking / Lending institution evaluated on FCFE, P/B multiples, asset quality, and low-cost funding moat.",
+                "weights": {"valuation": 30, "moat": 25, "health": 25, "ten_minute": 20}
+            }
+
+        if any(c in sector or c in industry for c in self.CYCLICAL_SECTORS):
+            return {
+                "type": "CYCLICAL_COMMODITY",
+                "name": "🌊 Cyclical Commodity",
+                "badge_color": "warning",
+                "description": "Commodity cyclical business with zero product pricing power. Solvency (35%) & CAPE Valuation (35%) supersede Moat.",
+                "weights": {"valuation": 35, "moat": 10, "health": 35, "ten_minute": 20}
+            }
+
+        if any(p in sector or p in industry for p in self.COMPOUNDER_SECTORS):
+            return {
+                "type": "PERPETUAL_COMPOUNDER",
+                "name": "🌳 Perpetual Compounder",
+                "badge_color": "success",
+                "description": "High-ROIC secular compounder. Economic Moat & Pricing Power (35%) are the primary long-term return drivers.",
+                "weights": {"valuation": 30, "moat": 35, "health": 15, "ten_minute": 20}
+            }
+
+        return {
+            "type": "GENERAL_OPERATING",
+            "name": "⚙️ Industrial / General",
+            "badge_color": "secondary",
+            "description": "General operating business with balanced valuation, moat, and balance sheet quality requirements.",
+            "weights": {"valuation": 30, "moat": 25, "health": 25, "ten_minute": 20}
+        }
 
     def detect_special_situations(self):
         """
         Executes comprehensive anomaly detection.
         Returns dictionary of active situations, adjustments, and warnings.
         """
+        archetype = self.get_business_archetype()
+
         results = {
             "ticker": self.ticker,
             "has_special_situation": False,
@@ -76,6 +124,7 @@ class AnomalyDetector:
             "badge_title": None,
             "badge_color": "info",
             "description": None,
+            "archetype": archetype,
             "holdco_adjustment": None,
             "conglomerate_sotp": None,
             "cyclical_normalization": None,
@@ -93,9 +142,7 @@ class AnomalyDetector:
         sector = (self.data_engine.info.get("sector", "") or "").lower()
         industry = (self.data_engine.info.get("industry", "") or "").lower()
 
-        # -------------------------------------------------------------
         # 1. HOLDING COMPANY (HOLDCO) DETECTION
-        # -------------------------------------------------------------
         if norm_sym in self.HOLDING_COMPANIES or "holding" in (self.data_engine.info.get("longName", "").lower()):
             holdco_info = self.HOLDING_COMPANIES.get(norm_sym, {
                 "parent_group": "Corporate Group",
@@ -117,9 +164,7 @@ class AnomalyDetector:
             }
             return results
 
-        # -------------------------------------------------------------
         # 2. CONGLOMERATE SOTP DETECTION
-        # -------------------------------------------------------------
         if norm_sym in self.CONGLOMERATES or "conglomerate" in industry:
             cong_info = self.CONGLOMERATES.get(norm_sym, {
                 "name": self.data_engine.info.get("longName", norm_sym),
@@ -134,12 +179,9 @@ class AnomalyDetector:
             results["conglomerate_sotp"] = cong_info
             return results
 
-        # -------------------------------------------------------------
         # 3. COMMODITY & CYCLICAL CAPE NORMALIZATION
-        # -------------------------------------------------------------
         is_cyclical = any(c in sector or c in industry for c in self.CYCLICAL_SECTORS)
         if is_cyclical:
-            # Check 3-year EBIT volatility
             ebit_0 = self.data_engine.get_financials_safe(self.data_engine.financials, "Operating Income", 0)
             ebit_1 = self.data_engine.get_financials_safe(self.data_engine.financials, "Operating Income", 1)
             ebit_2 = self.data_engine.get_financials_safe(self.data_engine.financials, "Operating Income", 2)
@@ -172,9 +214,7 @@ class AnomalyDetector:
                 }
                 return results
 
-        # -------------------------------------------------------------
         # 4. ONE-TIME EXCEPTIONAL GAIN DETECTION
-        # -------------------------------------------------------------
         pretax = self.data_engine.get_financials_safe(self.data_engine.financials, "Pretax Income", 0)
         other_inc = abs(self.data_engine.get_financials_safe(self.data_engine.financials, "Other Non Operating Income", 0) or 0)
 
@@ -190,9 +230,7 @@ class AnomalyDetector:
             }
             return results
 
-        # -------------------------------------------------------------
         # 5. NEW-AGE INTERNET / HYPER-GROWTH PLATFORM
-        # -------------------------------------------------------------
         eps = self.data_engine.info.get("trailingEps", 0) or 0
         rev_cagr = self.data_engine.calculate_multi_year_cagr(self.data_engine.financials, "Total Revenue", max_years=3)
 

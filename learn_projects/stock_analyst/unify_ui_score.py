@@ -21,11 +21,15 @@ def main():
     {% if scorecard %}
     <div class="card mb-4 shadow-lg animate-fade-in {% if scorecard.recommendation == 'STRONG BUY' %}border-glow-green{% elif 'AVOID' in scorecard.recommendation %}border-glow-red{% else %}glow-blue{% endif %}" style="border-width: 2px; border-radius: 14px; background: linear-gradient(145deg, #181825, #11111b);">
         <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-            <div>
-                <span class="badge badge-pill badge-primary px-3 py-1 mr-2" style="font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
+            <div class="d-flex align-items-center flex-wrap">
+                <span class="badge badge-pill badge-primary px-3 py-1 mr-2 mb-1" style="font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
                     <i class="fas fa-crown text-warning mr-1"></i> MASTER COMPOSITE SCORE
                 </span>
-                <span class="text-muted" style="font-size: 0.82rem;">Unified Dorsey + Graham + Forensic Quant Synthesis</span>
+                {% if scorecard.archetype and scorecard.archetype.name %}
+                <span class="badge badge-pill badge-dark px-3 py-1 mr-2 mb-1 border" style="font-size: 0.82rem; border-color: rgba(255,255,255,0.2) !important;">
+                    {{ scorecard.archetype.name }}
+                </span>
+                {% endif %}
             </div>
             {% if momentum_52w and momentum_52w.status != 'N/A' %}
             <div>
@@ -51,7 +55,7 @@ def main():
                     <small class="text-muted" style="font-size: 0.8rem;">Confidence: <span class="text-white">{{ scorecard.confidence }}</span></small>
                 </div>
 
-                <!-- 4 Master Pillars Breakdown -->
+                <!-- 4 Master Pillars Breakdown (Dynamic Archetype Weights) -->
                 <div class="col-lg-9 col-md-8 pl-md-4">
                     <div class="row">
                         <!-- Pillar 1: Valuation -->
@@ -182,7 +186,7 @@ def main():
     with open(target_path, 'w') as f:
         f.write(new_text)
 
-    print("Successfully injected Special Situation banner and unified top!")
+    print("Successfully injected Archetype Badge and unified top!")
 
 if __name__ == '__main__':
     main()
