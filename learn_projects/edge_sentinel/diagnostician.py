@@ -22,7 +22,11 @@ def diagnose_error(container_name: str, log_snippet: str) -> dict:
     Sends the raw Docker error trace to the local llama-server on Pi 5
     and returns a structured diagnosis dictionary.
     """
-    user_prompt = f"Container: {container_name}\n\nLog Trace:\n```\n{log_snippet}\n```"
+    # Keep only the last 15 lines so ARM CPU prompt prefill takes < 1 second!
+    clean_lines = [line for line in log_snippet.strip().split("\n") if line.strip()]
+    trimmed_log = "\n".join(clean_lines[-15:])
+
+    user_prompt = f"Container: {container_name}\n\nLog Trace:\n```\n{trimmed_log}\n```"
 
     payload = {
         "model": MODEL_NAME,
@@ -31,11 +35,11 @@ def diagnose_error(container_name: str, log_snippet: str) -> dict:
             {"role": "user", "content": user_prompt}
         ],
         "temperature": 0.1,  # Low temperature for deterministic, precise diagnostics
-        "max_tokens": 256
+        "max_tokens": 128
     }
 
     try:
-        with httpx.Client(timeout=15.0) as client:
+        with httpx.Client(timeout=30.0) as client:
             response = client.post(LLAMA_SERVER_URL, json=payload)
             response.raise_for_status()
             
