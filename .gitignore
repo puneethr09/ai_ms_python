@@ -212,6 +212,7 @@ tempCodeRunnerFile.py
 *.bin
 *.onnx
 models/
+learn_projects/llama.cpp/
 learn_projects/llama.cpp/build/
 learn_projects/llama.cpp/models/
 
