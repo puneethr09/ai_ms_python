@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from datetime import datetime
 
 DB_PATH = "stocks.db"
@@ -26,10 +27,23 @@ def init_db():
     conn.commit()
     conn.close()
 
+def _stringify_field(val) -> str:
+    """Safely converts lists or dicts into clean readable strings for SQLite."""
+    if isinstance(val, list):
+        return "\n• " + "\n• ".join(str(item) for item in val)
+    elif isinstance(val, dict):
+        return json.dumps(val, indent=2)
+    return str(val) if val is not None else ""
+
 def save_stock_report(data: dict):
-    """Inserts or updates a stock report in SQLite."""
+    """Inserts or updates a stock report in SQLite with safe type sanitization."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    verdict_str = _stringify_field(data.get("ai_verdict"))
+    moat_str = _stringify_field(data.get("moat_analysis"))
+    risks_str = _stringify_field(data.get("top_risks"))
+
     cursor.execute("""
         INSERT OR REPLACE INTO stock_reports 
         (ticker, company_name, sector, current_price, pe_ratio, debt_to_equity, roe, ai_score, ai_verdict, moat_analysis, top_risks, updated_at)
@@ -43,9 +57,9 @@ def save_stock_report(data: dict):
         data.get("debt_to_equity"),
         data.get("roe"),
         data.get("ai_score"),
-        data.get("ai_verdict"),
-        data.get("moat_analysis"),
-        data.get("top_risks"),
+        verdict_str,
+        moat_str,
+        risks_str,
         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ))
     conn.commit()
