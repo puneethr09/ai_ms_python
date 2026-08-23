@@ -4,16 +4,13 @@ import csv
 import json
 import logging
 import argparse
-import httpx
 from datetime import datetime, timedelta
 from db import init_db, save_stock_report, get_stock_report
 from fetcher import fetch_indian_stock_data
-from ai_analyst import calculate_grounded_score
+from ai_analyst import query_live_edge_ai
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("night_shift")
-
-LLAMA_SERVER_URL = os.getenv("LLAMA_SERVER_URL", "http://127.0.0.1:8080/v1/chat/completions")
 
 INPUT_DIR_PATHS = [
     "/home/puneeth/repo/stock_fundamental/input",
@@ -52,9 +49,9 @@ def load_deduplicated_tickers(universe_key: str = "all") -> list:
 
     if not found_files:
         logger.warning(f"No CSV files found matching '{pattern}' in {INPUT_DIR_PATHS}. Using fallback.")
-        return ["TCS.NS", "RELIANCE.NS", "INFY.NS", "HDFCBANK.NS", "ITC.NS", "TATAMOTORS.NS"]
+        return ["TCS.NS", "RELIANCE.NS", "INFY.NS", "HDFCBANK.NS", "ITC.NS"]
 
-    unique_tickers_dict = {}  # { ticker_symbol: company_name }
+    unique_tickers_dict = {}
 
     for csv_file in sorted(found_files):
         try:
@@ -90,67 +87,6 @@ def is_report_fresh(ticker: str, max_age_hours: int = 24) -> bool:
         pass
     return False
 
-def analyze_company_with_ai(financials: dict) -> dict:
-    """Generates CFA-grade grounded analysis using local Llama model."""
-    pe = financials.get("pe_ratio", 0.0)
-    roe = financials.get("roe", 0.0)
-    de = financials.get("debt_to_equity", 0.0)
-    margin = financials.get("operating_margin") or financials.get("profit_margin", 0.0)
-    fcf = financials.get("free_cashflow_cr", 0.0)
-    price = financials.get("current_price", 0.0)
-    sector = financials.get("sector", "Indian Markets")
-    company_name = financials.get("company_name", financials["ticker"])
-
-    score = calculate_grounded_score(pe, roe, de, margin)
-
-    user_prompt = (
-        f"Analyze {company_name} ({financials['ticker']}) in the {sector} sector:\n"
-        f"• Stock Price: ₹{price} | P/E: {pe}x | ROE: {roe}% | Debt/Equity: {de}\n"
-        f"• Operating Margin: {margin}% | Free Cash Flow: ₹{fcf} Cr\n\n"
-        f"Grounding requirement: Reference these exact numbers. Explain valuation thesis, economic moat, and top 2 risks."
-    )
-
-    system_prompt = (
-        "You are an expert equity research AI on Raspberry Pi 5. Return STRICT JSON only:\n"
-        "{\n"
-        f"  \"ai_score\": {score},\n"
-        "  \"ai_verdict\": \"2-3 factual sentences explaining valuation appeal based on ROE and P/E.\",\n"
-        "  \"moat_analysis\": \"2 sentences on competitive pricing power and moat durability.\",\n"
-        "  \"top_risks\": \"2 specific risks regarding debt, margins, or market cyclicality.\"\n"
-        "}"
-    )
-
-    payload = {
-        "model": "local-model",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.15,
-        "max_tokens": 250
-    }
-
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            res = client.post(LLAMA_SERVER_URL, json=payload)
-            res.raise_for_status()
-            content = res.json()["choices"][0]["message"]["content"].strip()
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-            parsed = json.loads(content)
-            parsed["ai_score"] = score
-            return parsed
-    except Exception as e:
-        logger.debug(f"AI call failed: {e}")
-        return {
-            "ai_score": score,
-            "ai_verdict": f"{company_name} carries an ROE of {roe}% with {pe}x P/E and {de} debt-to-equity ratio.",
-            "moat_analysis": f"Operating margin of {margin}% reflects industry competitive positioning in {sector}.",
-            "top_risks": "Margin compression and macro interest rate headwinds."
-        }
-
 def run_night_shift(universe_key: str = "all", limit: int = None, force: bool = False):
     """Executes the overnight batch processing pipeline over deduplicated stocks."""
     init_db()
@@ -167,7 +103,6 @@ def run_night_shift(universe_key: str = "all", limit: int = None, force: bool = 
     skipped_count = 0
 
     for i, sym in enumerate(tickers, start=1):
-        # Skip if analyzed in last 24h unless force is True
         if not force and is_report_fresh(sym):
             skipped_count += 1
             print(f"[{i}/{len(tickers)}] ⏩ [SKIP] {sym:<15} (Fresh analysis exists in stocks.db)")
@@ -175,15 +110,17 @@ def run_night_shift(universe_key: str = "all", limit: int = None, force: bool = 
 
         print(f"\n[{i}/{len(tickers)}] 📊 Fetching & Analyzing {sym}...")
         data = fetch_indian_stock_data(sym)
-        if not data:
+        if not data or not data.get("current_price"):
+            print(f"   ⚠️ Could not fetch financial metrics for {sym}. Skipping.")
             continue
 
-        ai_res = analyze_company_with_ai(data)
+        ai_res = query_live_edge_ai(data)
         combined = {**data, **ai_res}
         save_stock_report(combined)
         analyzed_count += 1
-        print(f"   ✅ Saved {data['company_name']} | Score: {ai_res.get('ai_score')}/10")
-        print(f"   💡 Verdict: {str(ai_res.get('ai_verdict'))[:80]}...")
+        score_display = f"{ai_res.get('ai_score')}/10" if ai_res.get('ai_score') is not None else "N/A"
+        print(f"   ✅ Saved {data['company_name']} | Score: {score_display}")
+        print(f"   💡 Verdict: {str(ai_res.get('ai_verdict'))[:100]}...")
 
     print("\n" + "=" * 70)
     print(f"🎉 NIGHT SHIFT COMPLETE!")
