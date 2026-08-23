@@ -1,0 +1,16 @@
+[Unit]
+Description=AI Overwatcher SRE Sentinel Daemon
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=puneeth
+WorkingDirectory=/home/puneeth/repo/ai_ms_python/learn_projects/edge_sentinel
+ExecStart=/home/puneeth/repo/ai_ms_python/learn_projects/edge_sentinel/.venv/bin/python sentinel.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
