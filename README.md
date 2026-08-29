@@ -14,15 +14,15 @@ The theoretical foundations and physical principles are documented across dedica
 
 | Level | Chapter & Topic | Core Systems Concepts |
 | :--- | :--- | :--- |
-| **01** | ⚡ [**Bare-Metal Silicon & The Latency Pyramid**](file:///Users/puneeth/repo/ai_ms_python/knowledge/01_hardware_silicon.md) | Flip-flop registers, 6T-SRAM vs 1T-1C DRAM, $RC$ wire delay, Set-Associativity, LRU cache circuits |
-| **02** | 🖥️ [**OS, Virtual Memory & RAII**](file:///Users/puneeth/repo/ai_ms_python/knowledge/02_os_virtual_memory.md) | 64-bit address space, Demand Paging, BSS/Data/rodata segments, `mmap()`, RAII stack unwinding |
-| **03** | 🛡️ [**Processes, Threads & Systems Security**](file:///Users/puneeth/repo/ai_ms_python/knowledge/03_processes_threads_security.md) | Page table isolation, Chrome/VS Code/Games architectures, DLL injection, buffer overflows, Spectre |
-| **04** | 🔄 [**Concurrency & Asynchronous Engines**](file:///Users/puneeth/repo/ai_ms_python/knowledge/04_concurrency_async_engines.md) | C++20 `std::jthread`, Python GIL release mechanics, `epoll`/`kqueue` event loops, C10k web servers |
-| **05** | 📦 [**Python Internals & Memory Models**](file:///Users/puneeth/repo/ai_ms_python/knowledge/05_python_internals_memory.md) | `PyObject` C-struct layout, Refcounting vs Cyclic GC, `pymalloc` arenas/pools, Zero-Copy `Py_buffer` |
-| **06** | 🚀 [**Inference Engineering Roadmap**](file:///Users/puneeth/repo/ai_ms_python/knowledge/06_inference_engineering_roadmap.md) | Memory bandwidth physics, Inverse Law of token speed, `mlock` page eviction, `llama.h` C++ API |
-| **07** | ⚡ [**CUDA Lesson 1: GPU Hardware Fundamentals**](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/LESSON_1_GPU_HARDWARE_FUNDAMENTALS.md) | SMs, 2,560 cores, SIMT Warps, Zero-Cost Context Switching, Latency Hiding, Tensor Cores |
-| **08** | 🧩 [**CUDA Lesson 2: Programming & Coordinate Model**](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/LESSON_2_CUDA_PROGRAMMING_MODEL.md) | Grid/Block/Thread 1D & 2D coordinate formulas, GigaThread block scheduler, Boundary guards |
-| **09** | 🔬 [**CUDA Lesson 3: Memory Hierarchy & Benchmarks**](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/LESSON_3_MEMORY_HIERARCHY_AND_BENCHMARKS.md) | Asynchronous CUDA Streams, `cudaMalloc` vs Caching Allocator, 32-way bank conflicts, live T4 benchmarks |
+| **01** | ⚡ [**Bare-Metal Silicon & The Latency Pyramid**](knowledge/01_hardware_silicon.md) | Flip-flop registers, 6T-SRAM vs 1T-1C DRAM, RC wire delay, Set-Associativity, LRU cache circuits |
+| **02** | 🖥️ [**OS, Virtual Memory & RAII**](knowledge/02_os_virtual_memory.md) | 64-bit address space, Demand Paging, BSS/Data/rodata segments, `mmap()`, RAII stack unwinding |
+| **03** | 🛡️ [**Processes, Threads & Systems Security**](knowledge/03_processes_threads_security.md) | Page table isolation, Chrome/VS Code/Games architectures, DLL injection, buffer overflows, Spectre |
+| **04** | 🔄 [**Concurrency & Asynchronous Engines**](knowledge/04_concurrency_async_engines.md) | C++20 `std::jthread`, Python GIL release mechanics, `epoll`/`kqueue` event loops, C10k web servers |
+| **05** | 📦 [**Python Internals & Memory Models**](knowledge/05_python_internals_memory.md) | `PyObject` C-struct layout, Refcounting vs Cyclic GC, `pymalloc` arenas/pools, Zero-Copy `Py_buffer` |
+| **06** | 🚀 [**Inference Engineering Roadmap**](knowledge/06_inference_engineering_roadmap.md) | Memory bandwidth physics, Inverse Law of token speed, `mlock` page eviction, `llama.h` C++ API |
+| **07** | ⚡ [**CUDA Lesson 1: GPU Hardware Fundamentals**](learn_projects/cuda_kernels/LESSON_1_GPU_HARDWARE_FUNDAMENTALS.md) | SMs, 2,560 cores, SIMT Warps, Zero-Cost Context Switching, Latency Hiding, Tensor Cores |
+| **08** | 🧩 [**CUDA Lesson 2: Programming & Coordinate Model**](learn_projects/cuda_kernels/LESSON_2_CUDA_PROGRAMMING_MODEL.md) | Grid/Block/Thread 1D & 2D coordinate formulas, GigaThread block scheduler, Boundary guards |
+| **09** | 🔬 [**CUDA Lesson 3: Memory Hierarchy & Benchmarks**](learn_projects/cuda_kernels/LESSON_3_MEMORY_HIERARCHY_AND_BENCHMARKS.md) | Asynchronous CUDA Streams, `cudaMalloc` vs Caching Allocator, 32-way bank conflicts, live T4 benchmarks |
 
 ---
 
@@ -30,23 +30,23 @@ The theoretical foundations and physical principles are documented across dedica
 
 Each project implements clean, benchmarked, production-ready code:
 
-### 1. ⚡ [Custom CUDA Matrix Multiplication Kernels](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/)
-- 📓 [`CUDA_Masterclass.ipynb`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/CUDA_Masterclass.ipynb): Interactive Colab/Tesla T4 GPU notebook.
-- 📄 [`00_gpu_fundamentals.py`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/00_gpu_fundamentals.py): GPU hardware inspection and CPU vs GPU crossover benchmark.
-- 📄 [`01_naive_matmul.py`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/01_naive_matmul.py): First raw C++ CUDA kernel (JIT-compiled with `nvcc` via PyTorch `load_inline`).
-- 📄 [`02_shared_memory_tiled.py`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/02_shared_memory_tiled.py): Shared memory tiled matrix multiplication (**3.05x speedup** on Tesla T4).
-- 📄 [`03_coalescing_and_bank_conflicts.py`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/cuda_kernels/03_coalescing_and_bank_conflicts.py): Microbenchmarks proving **88.5% bandwidth loss** on strided access and **19.9x slowdown** on 32-way shared memory bank conflicts.
+### 1. ⚡ [Custom CUDA Matrix Multiplication Kernels](learn_projects/cuda_kernels/)
+- 📓 [**`CUDA_Masterclass.ipynb`**](learn_projects/cuda_kernels/CUDA_Masterclass.ipynb): Interactive Colab/Tesla T4 GPU notebook.
+- 📄 [**`00_gpu_fundamentals.py`**](learn_projects/cuda_kernels/00_gpu_fundamentals.py): GPU hardware inspection and CPU vs GPU crossover benchmark.
+- 📄 [**`01_naive_matmul.py`**](learn_projects/cuda_kernels/01_naive_matmul.py): First raw C++ CUDA kernel (JIT-compiled with `nvcc` via PyTorch `load_inline`).
+- 📄 [**`02_shared_memory_tiled.py`**](learn_projects/cuda_kernels/02_shared_memory_tiled.py): Shared memory tiled matrix multiplication (**3.05x speedup** on Tesla T4).
+- 📄 [**`03_coalescing_and_bank_conflicts.py`**](learn_projects/cuda_kernels/03_coalescing_and_bank_conflicts.py): Microbenchmarks proving **88.5% bandwidth loss** on strided access and **19.9x slowdown** on 32-way shared memory bank conflicts.
 
-### 2. ⚡ [C++ / Python Hybrid Zero-Copy API](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hybrid_api/)
+### 2. ⚡ [C++ / Python Hybrid Zero-Copy API](learn_projects/hybrid_api/)
 - High-performance FastAPI server backed by a compiled C++ engine (`pybind11`).
 - Demonstrates zero-copy buffer sharing (`Py_buffer`) and GIL release (`py::gil_scoped_release`) for non-blocking concurrent request handling.
 
-### 3. 🦙 [Custom llama.cpp C++ Inference Engine](file:///Users/puneeth/repo/ai_ms_python/learn_projects/custom_inference/)
+### 3. 🦙 [Custom llama.cpp C++ Inference Engine](learn_projects/custom_inference/)
 - Bare-metal C++ inference driver executing quantized LLMs (Qwen-2.5 7B, Llama-3.1 8B) on Apple Silicon Metal GPU / Unified Memory.
 
 ### 4. 🗂️ Systems & Data Utilities
-- 📂 [`learn_projects/smart_file_organizer/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/smart_file_organizer/): High-throughput CLI file organizer with generators and atomic POSIX operations.
-- 📂 [`learn_projects/hackernews_scraper/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hackernews_scraper/): Concurrent API scraper and data processing pipeline.
+- 📂 [**`learn_projects/smart_file_organizer/`**](learn_projects/smart_file_organizer/): High-throughput CLI file organizer with generators and atomic POSIX operations.
+- 📂 [**`learn_projects/hackernews_scraper/`**](learn_projects/hackernews_scraper/): Concurrent API scraper and data processing pipeline.
 
 ---
 
@@ -75,4 +75,4 @@ Verified empirical results from our live JIT kernel execution sessions:
 ---
 
 ## 🗺️ Operational Blueprints
-- 📋 [**Edge Lab & Operations Blueprint**](file:///Users/puneeth/repo/ai_ms_python/EDGE_LAB_BLUEPRINT.md): Architecture blueprint for Raspberry Pi 5 cluster, Pironman 5 NVMe setup, AI Overwatcher telemetry, and Tailscale mesh networking.
+- 📋 [**Edge Lab & Operations Blueprint**](EDGE_LAB_BLUEPRINT.md): Architecture blueprint for Raspberry Pi 5 cluster, Pironman 5 NVMe setup, AI Overwatcher telemetry, and Tailscale mesh networking.
