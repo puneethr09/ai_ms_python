@@ -46,8 +46,8 @@ GRID  (The entire job → maps to the whole GPU)
 
 | Software Concept | Hardware It Maps To | Why It Exists |
 |---|---|---|
-| **Grid** | Entire GPU (all 40–82 SMs) | Represents the full computation |
-| **Block** | ONE single SM | Threads share L1/Shared Memory, can synchronize |
+| **Grid** | Entire GPU (all 40-82 SMs) | Represents the full computation |
+| **Block** | Runs on one SM (but multiple blocks can share one SM) | Threads share that SM's L1/Shared Memory, can synchronize |
 | **Warp** (32 threads) | One Warp Scheduler + 32 ALUs | Smallest execution unit, always runs in lockstep |
 
 ### Critical Rules:
@@ -173,11 +173,11 @@ Time 3:  SM0←Block12  SM1←Block13  SM2←Block14  SM3←Block15
 
 ## 2.7 Clarifications from Discussion
 
-### Block Size ≠ SM Core Count
-- SM has 128 CUDA cores (RTX 3090) — fixed in silicon
-- You CAN launch 256 threads on 128 cores → SM time-slices in 2 cycles
-- 256 threads = 8 warps → good for latency hiding
-- Hard limits: max 1024 threads/block, max 32–64 warps/SM
+### Block Size != SM Core Count
+- SM has 64 CUDA cores (T4 Turing) or 128 (RTX 3090 Ampere) — fixed in silicon
+- You CAN launch 256 threads on 128 cores — the SM time-slices warps across ALUs
+- 256 threads = 8 warps — good for latency hiding
+- Hard limits: max 1024 threads/block, max 32 warps/SM (Turing) or 48 warps/SM (Ampere)
 
 ### Warp State Lives in REGISTERS, Not L1 Cache
 - Each warp's 32 threads have dedicated physical registers (never evicted)
@@ -186,7 +186,7 @@ Time 3:  SM0←Block12  SM1←Block13  SM2←Block14  SM3←Block15
 - L1 cache: hardware-managed, CAN be evicted anytime
 
 ### Shared Memory and L1 Cache = Same Physical SRAM
-- One 128 KB SRAM chip on each SM, configurable split:
+- Each SM has on-chip SRAM: 64 KB per SM (Turing/T4) or 128 KB per SM (Ampere/3090), with configurable split:
   - Part as `__shared__` memory (YOU control, never evicted, predictable)
   - Part as L1 cache (HARDWARE controls, can be evicted, unpredictable)
-- Same speed, different control model → prefer shared memory for critical data
+- Same speed, different control model — prefer shared memory for critical data

@@ -62,10 +62,10 @@ Launch WAY more threads than physical cores (50,000 to 1,000,000+) so the warp s
 
 | Tier | Physical Location | Size | Latency | Bandwidth |
 |---|---|---|---|---|
-| Registers | On the ALU inputs | 256 KB/SM | 0–1 cycles | ~60 TB/s aggregate |
-| L1/Shared Memory | Inside each SM (on-chip SRAM) | 64–128 KB/SM | 1–4 cycles | ~19 TB/s aggregate |
-| L2 Cache | Center of GPU die | 4–6 MB shared | 150–200 cycles | ~3.5 TB/s |
-| VRAM (Global Memory) | Off-chip DRAM chips | 16–24 GB | 400–600 cycles | 0.3–0.9 TB/s |
+| Registers | On the ALU inputs | 256 KB/SM | 0-1 cycles | ~60 TB/s aggregate (theoretical peak) |
+| L1/Shared Memory | Inside each SM (on-chip SRAM) | 64 KB/SM (T4) or 128 KB/SM (3090) | 1-4 cycles (conflict-free) | ~19 TB/s aggregate |
+| L2 Cache | Center of GPU die | 4 MB (T4) / 6 MB (3090) shared | 200-300 cycles | ~3.5 TB/s |
+| VRAM (Global Memory) | Off-chip DRAM chips | 15 GB (T4) / 24 GB (3090) | 400-600 cycles | 0.3-0.9 TB/s |
 
 ### Key Insight:
 VRAM is 400x slower (latency) and 20x less bandwidth than L1 Shared Memory.
@@ -133,20 +133,20 @@ Four physical reasons:
 
 ## 1.9 Compute Units Inside One SM
 
-| Unit | Count per SM | What It Does |
-|---|---|---|
-| FP32 CUDA Cores | 64 (T4) / 128 (3090) | Scalar multiply-add: D = A*B + C (2 FLOPs/cycle) |
-| Tensor Cores | 8 per SM | Matrix multiply-add: 16x16 tile in 1 cycle (~512 FLOPs/cycle each!) |
-| SFUs (Special Function Units) | 4 per SM | Fast sin, cos, exp, rsqrt via silicon lookup tables (1–2 cycles) |
-| Warp Schedulers | 4 per SM | Issue 4 warps (128 threads) per clock cycle |
-| Register File | 256 KB per SM | 65,536 32-bit registers divided among all active threads |
+| Unit | Tesla T4 (Turing) | RTX 3090 (Ampere) | What It Does |
+|---|---|---|---|
+| FP32 CUDA Cores | 64 per SM | 128 per SM | Scalar multiply-add: D = A*B + C (2 FLOPs/cycle) |
+| Tensor Cores | 8 per SM (2nd Gen) | 4 per SM (3rd Gen, more powerful per core) | Matrix multiply-add on 4x4 or 8x8 sub-tiles |
+| SFUs (Special Function Units) | 4 per SM | 4 per SM | Fast sin, cos, exp, rsqrt via hardware lookup (~8 cycles, pipelined) |
+| Warp Schedulers | 4 per SM | 4 per SM | Issue 4 warps (128 threads) per clock cycle |
+| Register File | 256 KB per SM | 256 KB per SM | 65,536 32-bit registers divided among all active threads |
 
 ### Tensor Cores: The AI Supercharger
-- 4 Tensor Cores per SM produce 2,048 ops/cycle
-- 128 regular CUDA cores only produce 256 ops/cycle
-- Tensor Cores are 8x MORE powerful than all regular ALUs combined!
-- 98% of LLM computation is matrix multiply → handled by Tensor Cores
-- 2% is non-linear (softmax, RMSNorm) → handled by SFUs
+- Even though Ampere has fewer Tensor Cores per SM (4 vs 8), each 3rd-gen core is significantly more powerful than a 2nd-gen core
+- Tensor Cores perform small matrix multiply-accumulate operations (e.g. 4x4x4) in a single cycle
+- Combined throughput per SM is hundreds of FP16 TFLOPS, far exceeding what CUDA cores can achieve
+- ~98% of LLM computation is matrix multiply (handled by Tensor Cores)
+- ~2% is non-linear operations like softmax, RMSNorm (handled by CUDA cores and SFUs)
 
 ---
 
@@ -155,34 +155,37 @@ Four physical reasons:
 | Component | Google Colab (Tesla T4) | Office (RTX 3090) |
 |---|---|---|
 | SM Count | 40 | 82 |
-| Total CUDA Cores | 2,560 (40×64) | 10,496 (82×128) |
-| VRAM | 16 GB GDDR6 | 24 GB GDDR6X |
+| Total CUDA Cores | 2,560 (40 x 64) | 10,496 (82 x 128) |
+| VRAM | 15 GB GDDR6 (15,360 MiB) | 24 GB GDDR6X |
 | Memory Bandwidth | 320 GB/s | 936 GB/s |
 | FP32 Peak | 8.1 TFLOPS | 35.6 TFLOPS |
-| Tensor Cores | 320 (Turing 2nd Gen) | 328 (Ampere 3rd Gen) |
+| Tensor Cores | 320 total (8 per SM, Turing 2nd Gen) | 328 total (4 per SM, Ampere 3rd Gen) |
 
 ---
 
-## 1.11 Benchmark Results (Our Colab T4 Run)
+## 1.11 Benchmark Results (Verified on Tesla T4 via CUDA_Masterclass.ipynb)
 
 ### Milestone 0: CPU vs GPU Vector Operations
 | Vector Size | CPU (ms) | GPU (ms) | Speedup | Winner |
 |---|---|---|---|---|
-| 100 | 0.327 | 0.010 | 34.1x | GPU |
-| 1,000 | 0.005 | 0.010 | 0.4x | CPU |
-| 10,000 | 0.009 | 0.011 | 0.8x | CPU |
-| 100,000 | 0.055 | 0.011 | 5.1x | GPU |
-| 1,000,000 | 0.733 | 0.052 | 14.2x | GPU |
-| 10,000,000 | 23.713 | 0.491 | 48.3x | GPU |
+| 100 | 8.201 | 34.437 | 0.2x | CPU (cold-start overhead dominates) |
+| 1,000 | 0.034 | 0.055 | 0.6x | CPU |
+| 10,000 | 0.028 | 0.039 | 0.7x | CPU |
+| 100,000 | 0.198 | 0.109 | 1.8x | GPU |
+| 1,000,000 | 2.037 | 0.077 | 26.5x | GPU |
+| 10,000,000 | 22.169 | 0.713 | 31.1x | GPU |
 
-Key insight: Small vectors → CPU wins (GPU has ~5μs kernel launch overhead). Large vectors → GPU wins massively.
+Note: Row 1 (N=100) includes CUDA context initialization and PyTorch caching allocator cold-start (~30 ms one-time cost).
+Key insight: Below N=10,000, kernel launch overhead (~5-15 us) dominates. Above N=100,000, GPU massively wins.
 
 ### Milestone 4.1 & 4.2: Naive vs Tiled CUDA Matrix Multiply
 | Matrix Size | NVIDIA cuBLAS | Naive CUDA | Tiled CUDA | Tiled Speedup |
 |---|---|---|---|---|
-| 256×256 | 0.05 ms | 0.16 ms | 0.11 ms | 1.46x |
-| 512×512 | 0.13 ms | 1.15 ms | 0.75 ms | 1.54x |
-| 1024×1024 | 0.83 ms | 8.41 ms | 2.57 ms | 3.27x |
-| 2048×2048 | 3.92 ms | 38.99 ms | 25.34 ms | 1.54x |
+| 128x128 | 0.022 ms | 0.028 ms | 0.023 ms | 1.26x |
+| 256x256 | 0.055 ms | 0.160 ms | 0.109 ms | 1.48x |
+| 512x512 | 0.137 ms | 1.148 ms | 0.744 ms | 1.54x |
+| 1024x1024 | 0.831 ms | 9.190 ms | 3.015 ms | 3.05x |
+| 2048x2048 | 4.257 ms | 46.041 ms | 30.236 ms | 1.52x |
 
-Key insight: Shared memory tiling reduced global memory traffic → 3.27x speedup at 1024×1024.
+Key insight: Shared memory tiling reduced global memory traffic, achieving 3.05x speedup at 1024x1024.
+Naive kernel is 11x slower than cuBLAS because every float is re-read 1,024 times from VRAM.

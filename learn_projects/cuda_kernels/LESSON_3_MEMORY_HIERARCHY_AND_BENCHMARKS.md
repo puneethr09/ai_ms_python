@@ -36,13 +36,13 @@ CPU pushes into queue ──► [ Task 1: Record START timestamp ]
 
 ### CPU Virtual Memory & `malloc()`
 - **MMU Hardware Constraint:** The CPU hardware MMU cannot allocate arbitrary byte counts. It maps physical RAM in **4 KB Pages (4,096 bytes)** via page tables.
-- **Syscall Overhead:** Asking the OS kernel for memory via `sys_brk()` or `sys_mmap()` requires switching CPU privilege (Ring 3 User Mode $\rightarrow$ Ring 0 Kernel Mode), pausing the CPU pipeline, updating page tables, and flushing TLB translation caches (~1,000–2,000 CPU cycles / 1–2 microseconds).
-- **User-Space Arena Pooling:** `glibc malloc` asks the OS kernel for a large chunk (**128 KB – 2 MB**) on first touch, then satisfies subsequent small allocations from its user-space arena in ~10 nanoseconds with zero syscalls.
+- **Syscall Overhead:** Asking the OS kernel for memory via `sys_brk()` or `sys_mmap()` requires switching CPU privilege from Ring 3 (User Mode) to Ring 0 (Kernel Mode), pausing the CPU pipeline, updating page tables, and flushing TLB translation caches (~1,000-2,000 CPU cycles / 1-2 microseconds).
+- **User-Space Arena Pooling:** `glibc malloc` asks the OS kernel for a large chunk (**128 KB - 2 MB**) on first touch, then satisfies subsequent small allocations from its user-space arena in ~10 nanoseconds with zero syscalls.
 
 ### GPU `cudaMalloc()` vs PyTorch Caching Allocator
-- **The 10,000x Latency Gap:** `cudaMalloc` takes **10 to 30 MILLISECONDS** because the CPU must communicate over PCIe, halt all active GPU warps, flush the GPU MMU TLBs, and update hardware page tables across all 40 SMs.
-- **PyTorch Caching Allocator:** On the first iteration (**cold-start**), PyTorch calls `cudaMalloc` once to claim a massive **512 MB – 2 GB VRAM memory pool**.
-- All subsequent allocations in an AI model forward pass (e.g. 3,000 intermediate tensors per LLM token) are sub-allocated in user-space in **0.0001 ms**, enabling 100+ tokens/sec generation speed.
+- **The Latency Gap:** `cudaMalloc` takes **0.5 to 5 milliseconds** because the CPU must send a request over the PCIe bus, the NVIDIA driver must synchronize the device, the GPU Memory Management Unit (GMMU) updates hardware page tables, and the result is signaled back over PCIe. This is roughly 1,000x slower than a CPU `mmap()` syscall.
+- **PyTorch Caching Allocator:** On the first tensor allocation (**cold-start**), PyTorch calls `cudaMalloc` to claim a large VRAM memory pool (typically hundreds of MB to several GB, depending on available VRAM).
+- All subsequent tensor allocations are sub-allocated from this pool in user-space in ~0.0001 ms (just pointer arithmetic, zero driver calls), enabling fast inference and training.
 
 ---
 
@@ -51,9 +51,9 @@ CPU pushes into queue ──► [ Task 1: Record START timestamp ]
 ### 1. Milestone 0: CPU vs GPU Throughput Crossover (Vector Addition)
 | Vector Size (N) | CPU Time (ms) | GPU Time (ms) | Speedup | Winner | Physical Explanation |
 |---|---|---|---|---|---|
-| 100 | 8.201 | 34.437 | 0.2x | CPU | Cold-start overhead + 5–15 $\mu$s hardware kernel dispatch overhead dominates tiny math |
+| 100 | 8.201 | 34.437 | 0.2x | CPU | Cold-start: CUDA context init + PyTorch allocator pool creation (~30 ms one-time cost) |
 | 1,000 | 0.034 | 0.055 | 0.6x | CPU | Cache is warm, CPU finishes before GPU dispatch completes |
-| 10,000 | 0.028 | 0.039 | 0.7x | CPU | Still bounded by kernel launch overhead |
+| 10,000 | 0.028 | 0.039 | 0.7x | CPU | Still bounded by kernel launch overhead (~5-15 microseconds) |
 | 100,000 | 0.198 | 0.109 | 1.8x | GPU | GPU cores begin to saturate |
 | 1,000,000 | 2.037 | 0.077 | 26.5x | GPU | Massive parallelism wins |
 | 10,000,000 | 22.169 | 0.713 | 31.1x | GPU | 2,560 cores fully saturated (31x speedup) |
@@ -70,10 +70,10 @@ CPU pushes into queue ──► [ Task 1: Record START timestamp ]
 | 2048x2048 | 4.257 | 46.041 | 30.236 | 1.52x | ✅ Bit-exact pass |
 
 #### Why Naive is 11x slower than cuBLAS at 1024x1024:
-Every thread in Naive reads row $i$ of A and col $j$ of B from off-chip DRAM on every single iteration. For a 1024x1024 matrix, every single float is fetched **1,024 times from slow VRAM** (400 clock cycles per fetch).
+Every thread in Naive reads an entire row of A and an entire column of B from off-chip DRAM on every single loop iteration. For a 1024x1024 matrix, every single float is fetched **1,024 times from slow VRAM** (400 clock cycles per fetch).
 
 #### Why Shared Memory Tiling is 3.05x faster:
-The 256 threads in a 16x16 block collaborate to load a 16x16 tile into on-chip L1 SRAM **once**. All 16 threads in that row reuse the cached SRAM data for 16 multiply-accumulate operations at **1–2 clock cycles latency**, slashing global memory traffic by 16x!
+The 256 threads in a 16x16 block collaborate to load a 16x16 tile into on-chip L1 SRAM **once**. All 16 threads in that row reuse the cached SRAM data for 16 multiply-accumulate operations at **1-2 clock cycles latency** instead of 400 cycles, slashing global memory traffic by up to 16x!
 
 ---
 
@@ -95,3 +95,8 @@ Stride 8  (8-Way)      :  28.001 ms (4.97x slower - 8 threads hit same bank)
 Stride 16 (16-Way)     :  56.077 ms (9.95x slower - 16 threads hit same bank)
 Stride 32 (32-Way)     : 112.239 ms (19.91x slower - ALL 32 threads serialized on Bank 0!)
 ```
+
+Note on Experiment 3 (Padding Test): In our run, the padded tile showed no measurable speedup (0.97x).
+This is because our microbenchmark kernel was compute-bound rather than memory-latency-bound in that
+specific configuration. In production tiled matrix multiply kernels where column access patterns
+dominate, the padding trick (tile[32][33] instead of tile[32][32]) provides meaningful speedups.
