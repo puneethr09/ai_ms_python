@@ -71,6 +71,8 @@ Tier 3: Distributed Multi-Server Containers (Docker + Kubernetes)
 > **Kubernetes is literally containerized multi-processing scaled across a data center!**
 
 
+## 5. Real-World Architectural Case Studies
+
 ### 🌐 1. Google Chrome (Multi-Process Architecture)
 * **Design:** Each Browser Tab runs in its own isolated OS Process.
 * **Why:** If a rogue JavaScript infinite loop crashes Tab 1, Tab 2 continues running unharmed. Inside each tab, background threads decode video frames and pass memory buffers to the GPU without IPC latency.
@@ -87,7 +89,7 @@ Tier 3: Distributed Multi-Server Containers (Docker + Kubernetes)
 
 ---
 
-## 3. Systems Security & Memory Exploits
+## 6. Systems Security & Memory Exploits
 
 ### 💉 1. DLL / Shared Object Injection
 * **Mechanism:** A process abuses OS debugging syscalls (`OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `CreateRemoteThread`) to inject malicious machine code into the address space of a target process.
@@ -95,7 +97,7 @@ Tier 3: Distributed Multi-Server Containers (Docker + Kubernetes)
 ### 💣 2. Buffer Overflows
 * **Mechanism:** Writing beyond allocated buffer boundaries on the Stack to overwrite the Return Address (`RIP` / Instruction Pointer), hijacking execution flow when the function returns.
 
-### 👑 3. Kernel Privilege Escalation (Ring 3 $\to$ Ring 0)
+### 👑 3. Kernel Privilege Escalation (Ring 3 to Ring 0)
 * **Mechanism:** Exploiting vulnerable device drivers to write into kernel Page Tables, granting user-mode processes unrestricted access to physical RAM.
 
 ### 👻 4. Hardware Speculative Side-Channels (Spectre & Meltdown)
