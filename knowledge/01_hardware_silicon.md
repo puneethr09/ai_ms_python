@@ -55,7 +55,7 @@ Virtual Address ──> [ Logic Decoder Tree ] ──> [ Wordline ] ──> [ SR
 
 1. **Decoder Depth:** Addressing 1 MB requires 14+ layers of NAND/Multiplexer logic gates (vs. 9 layers for 32 KB). Each gate introduces a 5–10 picosecond switching delay.
 2. **Parasitic Wire Capacitance ($RC$ Delay):** In larger arrays, bitline wires are physically longer and connected to thousands of transistor drains ($T = R \times C$). Draining wire voltage from $1\text{V}$ to $0\text{V}$ takes more clock ticks.
-3. **Set-Associativity Width:** L1 is 8-way associative (8 tag comparators); L2 is 16-to-24-way associative (wider multiplexer trees).
+3. **Set-Associativity Width:** L1 is typically 8-way associative (8 parallel tag comparators); L2 is 8-to-16-way (Intel/AMD) or up to 24-way (Apple Silicon) associative, requiring wider multiplexer trees and longer comparator resolution time.
 
 ---
 
