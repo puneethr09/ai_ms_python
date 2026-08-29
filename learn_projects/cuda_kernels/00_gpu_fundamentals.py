@@ -155,11 +155,10 @@ def query_gpu_properties():
 
     print(f"  GPU Name:                {props.name}")
     print(f"  Compute Capability:      {props.major}.{props.minor}")
-    print(f"  Total VRAM (Global Mem): {props.total_mem / 1e9:.1f} GB")
+    print(f"  Total VRAM (Global Mem): {props.total_memory / 1e9:.1f} GB")
     print(f"  Streaming Multiprocessors (SMs): {props.multi_processor_count}")
-    print(f"  Max Threads per Block:   {props.max_threads_per_block}")
-    print(f"  Max Block Dimensions:    {props.max_threads_per_block}")
-    print(f"  Warp Size:               {props.warp_size}")
+    print(f"  Max Threads per Block:   1024 (CUDA Hardware Standard)")
+    print(f"  Warp Size:               32 threads (NVIDIA Hardware Constant)")
     print()
 
     # Calculate theoretical peak
