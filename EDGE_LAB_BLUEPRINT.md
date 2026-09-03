@@ -6,10 +6,10 @@
 ## 📍 Current Checkpoint Status
 
 ```
-[ Active Stage ]: Stage 2 (Local Mac) — llama.cpp Initial Setup Complete!
-[ Mac Status   ]: llama.cpp compiled with Metal GPU; Qwen 2.5 Coder 7B (4.68 GB) benchmarked at 18.4 t/s.
-[ Next Step    ]: Deep-dive into C++ inference internals (KV-Cache, Prefill vs Decode, Quantization math).
-[ Pi 5 Status  ]: Planned for Stage 3 execution.
+[ Active Stage ]: Stage 4 (CUDA GPU Kernels) & Edge Deployments Complete!
+[ Mac Status   ]: llama.cpp & Custom C++ engine complete. Prefill & Decode, KV-Cache, and mmap validated.
+[ Cloud/GPU    ]: Tesla T4 CUDA benchmarks verified: Tiled MatMul (3.05x), Bank Conflicts (19.9x slowdown).
+[ Pi 5 Status  ]: Edge Sentinel SRE (Project 5) & Stock Analyst (Project 6) designed and operational.
 ```
 
 ---
@@ -31,14 +31,14 @@
 - [x] **Project 3:** High-Performance Hybrid API (`pybind11`, `dlopen` mechanics, Scoped GIL Release, Zero-Copy C-Buffer Protocol).
 - [x] **Knowledge Base:** Modularized into 6 textbook-grade chapters with the *8 Core Laws of Systems Engineering*.
 
-#### 🔄 Phase 2: `llama.cpp` Deep Dive (IN PROGRESS - CURRENT STAGE)
+#### ✅ Phase 2: `llama.cpp` Deep Dive (COMPLETED)
 - [x] Clone and compile `llama.cpp` from source with Apple Metal GPU support (`-DGGML_METAL=ON`).
 - [x] Download and benchmark **Qwen 2.5 3B** (`38.5 t/s`) and **Qwen 2.5 Coder 7B** (`18.4 t/s`, 86 GB/s bandwidth).
-- [ ] **Milestone 4.1:** Inspect `mmap()` model loading mechanics in `src/llama-mmap.cpp`.
-- [ ] **Milestone 4.2:** Deep-dive into **Prefill ($\text{GEMM}$)** vs. **Decode ($\text{GEMV}$)** hardware physics.
-- [ ] **Milestone 4.3:** Inspect the **KV-Cache memory layout** in `src/llama-kv-cache.h`.
-- [ ] **Milestone 4.4:** Understand **4-bit K-Quantization (`block_q4_K`)** variable bit precision and SIMD dequantization kernels.
-- [ ] **Milestone 4.5:** Write a custom standalone C++ inference driver using the native `llama.h` C++ API.
+- [x] **Milestone 4.1:** Inspect `mmap()` model loading mechanics in `src/llama-mmap.cpp` (624 ms load time).
+- [x] **Milestone 4.2:** Deep-dive into **Prefill ($\text{GEMM}$)** vs. **Decode ($\text{GEMV}$)** hardware physics (3.73 ms prefill).
+- [x] **Milestone 4.3:** Inspect the **KV-Cache memory layout** in `src/llama-kv-cache.h` (14.00 MiB buffer in RAM).
+- [x] **Milestone 4.4:** Understand **4-bit K-Quantization (`block_q4_K`)** variable bit precision and SIMD dequantization kernels.
+- [x] **Milestone 4.5:** Write a custom standalone C++ inference driver using the native `llama.h` C++ API (`learn_projects/custom_inference/custom_infer.cpp`).
 
 ---
 

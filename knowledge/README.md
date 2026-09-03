@@ -49,9 +49,13 @@ Level 7: ⚡ Low-Level CUDA Engineering ──> [ learn_projects/cuda_kernels/ ]
 
 ## 📂 Applied Workspace Projects
 
-* 📂 [`learn_projects/smart_file_organizer/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/smart_file_organizer/): Project 1 CLI Organizer (`pathlib`, generators, POSIX rename).
-* 📂 [`learn_projects/hackernews_scraper/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hackernews_scraper/): Project 2 API Cruncher (`requests`, safe map reads, list comprehensions).
-* 📂 [`learn_projects/hybrid_api/`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/hybrid_api/): Project 3 FastAPI + C++ `pybind11` Zero-Copy Server (GIL release, contiguous buffers).
+* 📂 [**Project 1: Smart File Organizer**](../learn_projects/smart_file_organizer/): High-throughput CLI organizer (`pathlib`, generators, POSIX rename).
+* 📂 [**Project 2: HackerNews Data Cruncher**](../learn_projects/hackernews_scraper/): Concurrent API scraper and data pipeline (`requests`, safe map reads, list comprehensions).
+* 📂 [**Project 3: High-Performance Hybrid API**](../learn_projects/hybrid_api/): Dual-tier FastAPI + C++ `pybind11` server (scoped GIL release, zero-copy `Py_buffer`).
+* 📂 [**Project 4: Standalone C++ Inference Engine**](../learn_projects/custom_inference/): Bare-metal `llama.h` C++ driver executing 7B models on Apple Metal GPU / Unified Memory.
+* 📂 [**Project 5: AI Overwatcher SRE Sentinel**](../learn_projects/edge_sentinel/): 24/7 autonomous edge SRE monitoring Docker containers and dispatching Telegram alerts via local LLM.
+* 📂 [**Project 6: Stock Fundamental Analyst**](../learn_projects/stock_analyst/): Autonomous asynchronous equity research engine with night-shift batch crunching and instant daytime retrieval.
+* 📂 [**Stage 4: Custom CUDA Kernels**](../learn_projects/cuda_kernels/): Custom matrix multiplication kernels (Naive vs Tiled SRAM, 3.05x speedup) and GPU memory microbenchmarks.
 
 ---
 

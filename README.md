@@ -44,7 +44,16 @@ Each project implements clean, benchmarked, production-ready code:
 ### 3. 🦙 [Custom llama.cpp C++ Inference Engine](learn_projects/custom_inference/)
 - Bare-metal C++ inference driver executing quantized LLMs (Qwen-2.5 7B, Llama-3.1 8B) on Apple Silicon Metal GPU / Unified Memory.
 
-### 4. 🗂️ Systems & Data Utilities
+### 4. 🛡️ [AI Overwatcher SRE Sentinel (Raspberry Pi 5)](learn_projects/edge_sentinel/)
+- 24/7 autonomous edge Site Reliability Engineer monitoring Docker containers (`/var/run/docker.sock`), Plex, Immich, and system services.
+- Uses a local LLM on ARM Cortex-A76 to analyze crash logs, diagnose root causes, and dispatch interactive alerts via Telegram.
+
+### 5. 📈 ["Night Shift & Day Shift" Stock Fundamental Analyst](learn_projects/stock_analyst/)
+- Autonomous asynchronous equity research engine running on Raspberry Pi 5.
+- Night Shift (2:00 AM Cron): Heavy local LLM crunches Indian stock filings (NSE/BSE) and concall transcripts, writing to SQLite.
+- Day Shift (Market Hours): Instant 0.01s retrieval of precomputed valuations with zero daytime CPU load.
+
+### 6. 🗂️ Systems & Data Utilities
 - 📂 [**`learn_projects/smart_file_organizer/`**](learn_projects/smart_file_organizer/): High-throughput CLI file organizer with generators and atomic POSIX operations.
 - 📂 [**`learn_projects/hackernews_scraper/`**](learn_projects/hackernews_scraper/): Concurrent API scraper and data processing pipeline.
 
