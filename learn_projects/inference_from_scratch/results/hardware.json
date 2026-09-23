@@ -1,0 +1,81 @@
+{
+  "chip": "Apple M3",
+  "cpu": {
+    "peak_gbps": 91.95,
+    "runs": [
+      {
+        "kernel": "read",
+        "threads": 1,
+        "gbps": 64.03
+      },
+      {
+        "kernel": "read",
+        "threads": 2,
+        "gbps": 67.46
+      },
+      {
+        "kernel": "read",
+        "threads": 4,
+        "gbps": 73.22
+      },
+      {
+        "kernel": "read",
+        "threads": 8,
+        "gbps": 91.95
+      },
+      {
+        "kernel": "copy",
+        "threads": 1,
+        "gbps": 82.58
+      },
+      {
+        "kernel": "copy",
+        "threads": 2,
+        "gbps": 91.48
+      },
+      {
+        "kernel": "copy",
+        "threads": 4,
+        "gbps": 91.15
+      },
+      {
+        "kernel": "copy",
+        "threads": 8,
+        "gbps": 91.89
+      },
+      {
+        "kernel": "triad",
+        "threads": 1,
+        "gbps": 85.35
+      },
+      {
+        "kernel": "triad",
+        "threads": 2,
+        "gbps": 87.23
+      },
+      {
+        "kernel": "triad",
+        "threads": 4,
+        "gbps": 87.18
+      },
+      {
+        "kernel": "triad",
+        "threads": 8,
+        "gbps": 83.32
+      }
+    ]
+  },
+  "gpu": {
+    "peak_gbps": 87.14,
+    "runs": [
+      {
+        "kernel": "read",
+        "gbps": 86.65
+      },
+      {
+        "kernel": "copy",
+        "gbps": 87.14
+      }
+    ]
+  }
+}

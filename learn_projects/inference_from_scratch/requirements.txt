@@ -1,0 +1,8 @@
+numpy
+regex
+# Reference side only (tests, fixtures, GPU bandwidth). Your nanoinfer code must not import these.
+torch
+transformers
+safetensors
+huggingface_hub
+pytest
