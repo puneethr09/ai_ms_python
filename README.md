@@ -19,7 +19,7 @@ The theoretical foundations and physical principles are documented across dedica
 | **03** | 🛡️ [**Processes, Threads & Systems Security**](knowledge/03_processes_threads_security.md) | Page table isolation, Chrome/VS Code/Games architectures, DLL injection, buffer overflows, Spectre |
 | **04** | 🔄 [**Concurrency & Asynchronous Engines**](knowledge/04_concurrency_async_engines.md) | C++20 `std::jthread`, Python GIL release mechanics, `epoll`/`kqueue` event loops, C10k web servers |
 | **05** | 📦 [**Python Internals & Memory Models**](knowledge/05_python_internals_memory.md) | `PyObject` C-struct layout, Refcounting vs Cyclic GC, `pymalloc` arenas/pools, Zero-Copy `Py_buffer` |
-| **06** | 🚀 [**Inference Engineering Roadmap**](knowledge/06_inference_engineering_roadmap.md) | Memory bandwidth physics, Inverse Law of token speed, `mlock` page eviction, `llama.h` C++ API |
+| **06** | 🚀 [**Inference Engineering Roadmap**](knowledge/06_inference_engineering_roadmap.md) | 9-phase build plan, memory bandwidth physics, Inverse Law of token speed, `mlock` page eviction, `llama.h` C++ API |
 | **07** | ⚡ [**CUDA Lesson 1: GPU Hardware Fundamentals**](learn_projects/cuda_kernels/LESSON_1_GPU_HARDWARE_FUNDAMENTALS.md) | SMs, 2,560 cores, SIMT Warps, Zero-Cost Context Switching, Latency Hiding, Tensor Cores |
 | **08** | 🧩 [**CUDA Lesson 2: Programming & Coordinate Model**](learn_projects/cuda_kernels/LESSON_2_CUDA_PROGRAMMING_MODEL.md) | Grid/Block/Thread 1D & 2D coordinate formulas, GigaThread block scheduler, Boundary guards |
 | **09** | 🔬 [**CUDA Lesson 3: Memory Hierarchy & Benchmarks**](learn_projects/cuda_kernels/LESSON_3_MEMORY_HIERARCHY_AND_BENCHMARKS.md) | Asynchronous CUDA Streams, `cudaMalloc` vs Caching Allocator, 32-way bank conflicts, live T4 benchmarks |
@@ -29,6 +29,10 @@ The theoretical foundations and physical principles are documented across dedica
 ## 🛠️ Hands-On Applied Projects
 
 Each project implements clean, benchmarked, production-ready code:
+
+### 0. 🧱 [Inference From Scratch](learn_projects/inference_from_scratch/) (main track)
+- The hands-on half of the [9-phase roadmap](knowledge/06_inference_engineering_roadmap.md): a Qwen2.5 transformer built by hand (numpy → C → Metal/CUDA → serving), every phase tested against Hugging Face and measured as a percentage of hardware peak.
+- Phase 0 measured this M3 at **92 GB/s CPU / 87 GB/s GPU** (about 90% of the 102.4 GB/s theoretical peak).
 
 ### 1. ⚡ [Custom CUDA Matrix Multiplication Kernels](learn_projects/cuda_kernels/)
 - 📓 [**`CUDA_Masterclass.ipynb`**](learn_projects/cuda_kernels/CUDA_Masterclass.ipynb): Interactive Colab/Tesla T4 GPU notebook.

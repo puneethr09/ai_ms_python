@@ -14,7 +14,8 @@ The complete knowledge base is modularized into dedicated, deep-dive chapters:
 | 🛡️ [**03. Processes, Threads & Security**](03_processes_threads_security.md) | Systems Architecture & Security | Chrome/Spotify/Games isolation, DLL Injection, Buffer Overflows, Spectre |
 | 🔄 [**04. Concurrency & Async Engines**](04_concurrency_async_engines.md) | Concurrency Models & Event Loops | Chef Analogy, C++20 `std::jthread`, Python GIL, Apache vs NGINX C10k |
 | 📦 [**05. Python Internals & Memory Models**](05_python_internals_memory.md) | Python C-API & Buffer Protocols | `PyObject` anatomy, Refcounting vs Cyclic GC, `pymalloc`, Zero-Copy Buffers, `pybind11` |
-| 🚀 [**06. Inference Engineering Roadmap**](06_inference_engineering_roadmap.md) | 5-Stage Hardware Blueprint | Mac -> Raspi 5 -> Colab CUDA -> RTX 3090 Rig, Bandwidth Physics, PagedAttention |
+| 🚀 [**06. Inference Engineering Roadmap**](06_inference_engineering_roadmap.md) | 9-Phase Build Plan | numpy → C → Metal → CUDA → Serving → Scale, Bandwidth Physics, PagedAttention |
+| 🧱 [**Inference From Scratch**](../learn_projects/inference_from_scratch/) | Hands-on track for chapter 06 | Hand-built Qwen2.5, HF reference tests, measured M3 bandwidth |
 | ⚡ [**07. CUDA Lesson 1: Hardware Fundamentals**](../learn_projects/cuda_kernels/LESSON_1_GPU_HARDWARE_FUNDAMENTALS.md) | GPU Silicon, SMs & Tensor Cores | 40-82 SMs, 2560 Cores, SIMT Warps, Latency Hiding, Memory Interconnect |
 | 🧩 [**08. CUDA Lesson 2: Programming Model**](../learn_projects/cuda_kernels/LESSON_2_CUDA_PROGRAMMING_MODEL.md) | 3D Grid/Block/Thread Hierarchy | 1D & 2D coordinates, GigaThread Scheduler, Boundary Guards, Time-Slicing |
 | 🔬 [**09. CUDA Lesson 3: Memory Hierarchy**](../learn_projects/cuda_kernels/LESSON_3_MEMORY_HIERARCHY_AND_BENCHMARKS.md) | SRAM Caching, Coalescing & Banks | Asynchronous CUDA Streams, `cudaMalloc` vs Caching Allocator, 32 Bank Conflicts |
@@ -36,7 +37,7 @@ Level 4: 🔄 Concurrency & Async ──> [ 04_concurrency_async_engines.md ]
    │
 Level 5: 📦 Language Memory ────> [ 05_python_internals_memory.md ]
    │
-Level 6: 🚀 5-Stage Inference Roadmap ──> [ 06_inference_engineering_roadmap.md ]
+Level 6: 🚀 9-Phase Inference Roadmap ──> [ 06_inference_engineering_roadmap.md ]
    │
 Level 7: ⚡ Low-Level CUDA Engineering ──> [ learn_projects/cuda_kernels/ ]
          ├── Lesson 1: Hardware Fundamentals (SMs, Warps, Interconnect)

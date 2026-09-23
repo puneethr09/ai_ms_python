@@ -1,29 +1,47 @@
-# Level 6: The 5-Stage Inference Engineering Roadmap
-> **Hardware-Mapped Strategy: From Local Silicon to Enterprise GPU Workstations**
+# Level 6: The Inference Engineering Roadmap
+> **Build every layer yourself, check it against a reference, and measure it against the hardware's limit.**
 
 ---
 
-## 1. The 5-Stage Hardware Blueprint
+## 1. The 9-Phase Build Plan
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              THE 5-STAGE INFERENCE JOURNEY                                  │
-│                                                                                             │
-│  [ Stage 1: Local Mac ] ──> [ Stage 2: Local Mac ] ──> [ Stage 3: Raspi 5 ]                │
-│  The C++/Python Bridge       llama.cpp Deep Dive       Edge CPU Optimization                │
-│                                                                                             │
-│                             ──> [ Stage 4: Google Colab ] ──> [ Stage 5: RTX 3090 Rig ]     │
-│                                  Raw CUDA C++ Kernels          Enterprise vLLM / 70B Model   │
-└─────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────── APPLE M3 (16 GB, ~100 GB/s) ─────────────────────────────────┐
+│ [0] Instruments ─> [1] Transformer in numpy ─> [2] C engine (NEON) ─> [3] Quantization        │
+│                                                     └─> [4] Metal / MLX ─> [6] Serving         │
+└───────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──── FREE COLAB T4 ────┐   ┌──── RENTED GPU (weekends) ────┐   ┌──── ONGOING ────────────────┐
+│ [5] CUDA + Triton     │   │ [7] vLLM/SGLang, multi-GPU    │   │ [8] Upstream PRs, write-ups │
+└───────────────────────┘   └───────────────────────────────┘   └─────────────────────────────┘
 ```
 
-| Stage | Focus Area | Device Used | Hardware Constraints & Goals |
+Hands-on code lives in [`learn_projects/inference_from_scratch/`](../learn_projects/inference_from_scratch/).
+
+| Phase | Build | Hardware | Exit criterion (must be measured) |
 | :--- | :--- | :--- | :--- |
-| **Stage 1 (Now)** | C++/Python Hybrid Architecture | **Local Mac** | FastAPI + `pybind11` Zero-Copy Buffer Server |
-| **Stage 2** | Production LLM C++ Internals | **Local Mac** | `llama.cpp` + Llama-3.1 8B (Metal GPU & Unified Memory) |
-| **Stage 3** | Edge AI & Memory Constraints | **Raspberry Pi 5** | ARM NEON SIMD, CPU-Only Quantized 2B/3B Models |
-| **Stage 4** | GPU Architecture & Raw CUDA | **Google Colab** | Custom CUDA C++ Matrix Multiply Kernels (`.cu`) |
-| **Stage 5** | Enterprise Scale & Optimization | **Office RTX 3090** | vLLM + Llama-3-70B + PagedAttention + `nsys` Profiling |
+| **0. Instruments** | Benchmark and test harness, STREAM-style bandwidth test for CPU and GPU | M3 | Your M3's real bandwidth (GB/s), recorded. Every later result is reported as a % of it |
+| **1. Transformer from scratch** | BPE tokenizer, safetensors loader, Qwen2.5-0.5B forward pass (RMSNorm, RoPE, GQA, SwiGLU), sampling, all in numpy | M3 | Token IDs match HF exactly; logits match HF (fp32) within 1e-3, same argmax |
+| **2. C engine** | Port the forward pass to C, `mmap` weights, KV cache, NEON matrix-vector kernel, threads | M3 CPU | Decode tokens/sec ≥ 70% of `bandwidth ÷ model bytes`; prefill and decode timed separately |
+| **3. Quantization** | Q8_0 / Q4_0 block quantization, fused dequant + matrix-vector kernel, perplexity eval | M3 CPU | Speed vs perplexity table for FP16 / Q8 / Q4 on your own engine |
+| **4. Apple GPU** | Metal compute kernels (matvec, RMSNorm, softmax, attention); same model in MLX | M3 GPU | Your Metal decode vs MLX vs llama.cpp Metal, as % of bandwidth |
+| **5. CUDA** | Matvec kernel, register-tiled GEMM, fused softmax/RMSNorm, FlashAttention forward, then Triton versions | Colab T4 | GEMM ≥ 70% of cuBLAS; every kernel reported as % of peak |
+| **6. Serving** | Continuous-batching scheduler, paged KV cache, prefix caching, streaming, speculative decoding, load tester | M3 | TTFT / TPOT / throughput curves under concurrent users |
+| **7. Scale** | Read vLLM and SGLang, tensor parallel across 2 GPUs, FP8, Nsight Systems/Compute | Rented GPU | Profiled multi-GPU run with the bottleneck explained |
+| **8. Show it** | Merged PRs to llama.cpp / MLX / vLLM, benchmark-driven write-ups | — | Public, reviewable work |
+
+**When is a GPU needed?** Not before Phase 5, and Phase 5 runs on free Colab. Rent (about $0.5–3/hr) only for Phase 7. Buy only if Phase 7 becomes daily work.
+
+**Rules:** every phase ends with a test against a reference and a benchmark against the hardware's limit. Code first, docs second.
+
+### Reading list (read alongside the phases)
+| Phase | Paper |
+| :--- | :--- |
+| 1 | Attention Is All You Need (Vaswani et al., 2017) · RoFormer / RoPE (Su et al., 2021) |
+| 0, 2 | Roofline: An Insightful Visual Performance Model (Williams et al., 2009) |
+| 3 | LLM.int8() · GPTQ · AWQ · SmoothQuant |
+| 5 | FlashAttention 1 / 2 / 3 |
+| 6 | Orca (continuous batching) · PagedAttention / vLLM · Speculative Decoding (Leviathan et al.) |
+| 7 | DistServe (disaggregated prefill/decode) · Megatron-LM (tensor parallelism) |
 
 ---
 
@@ -70,6 +88,9 @@ Data Traffic Streamed = 4.68 GB × 17.05 tokens/sec = 79.79 GB / sec!
 ## 4. The Inverse Law of Token Generation Speed
 
 $$\text{Token Generation Speed (tokens/sec)} = \frac{\text{Sustained Memory Bandwidth (GB/s)}}{\text{Model Size in RAM (GB)}}$$
+
+> [!NOTE]
+> **Measured in Phase 0:** this M3 sustains **92 GB/s** (CPU) and **87 GB/s** (GPU) out of 102.4 GB/s theoretical ([`hardware.json`](../learn_projects/inference_from_scratch/results/hardware.json)). llama.cpp's 17.05 tok/s on the 4.68 GB model moves ~80 GB/s, about **92% of the measured GPU peak**. That is the bar your own engine has to reach.
 
 Look at how token speed scales across model sizes on an **$80\text{ GB/s}$ Memory Bus (Your Mac)**:
 
@@ -128,7 +149,7 @@ B. FILE-BACKED MMAP (PROT_READ on GGUF):
 
 ## 7. The 7-Step C++ Inference Pipeline (`llama.h` API)
 
-From our verified C++ driver ([`custom_infer.cpp`](file:///Users/puneeth/repo/ai_ms_python/learn_projects/custom_inference/custom_infer.cpp)):
+From our verified C++ driver ([`custom_infer.cpp`](../learn_projects/custom_inference/custom_infer.cpp)):
 
 ```cpp
 // 1. Dynamic Linker & Shaders
