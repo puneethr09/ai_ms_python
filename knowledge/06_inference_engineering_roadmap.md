@@ -1,5 +1,7 @@
 # Level 6: The Inference Engineering Roadmap
 > **Build every layer yourself, check it against a reference, and measure it against the hardware's limit.**
+>
+> 📗 The theory for each phase lives in [**The Inference Textbook**](inference_textbook/): how a transformer produces a word and why it's slow, with flashcards.
 
 ---
 

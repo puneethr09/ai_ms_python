@@ -47,6 +47,8 @@ predicted_decode_tok_s(988e6)   # Qwen2.5-0.5B in BF16 -> ~93 tok/s ceiling on t
 
 ## Phase 1: A transformer in numpy
 
+📗 Read [**The Inference Textbook**](../../knowledge/inference_textbook/) first: it explains every piece you're about to build, with worked examples and flashcards.
+
 Write the code in [`nanoinfer/`](nanoinfer/). Every stub raises `NotImplementedError`, and the tests are your to-do list. Work through them in order:
 
 ```bash
