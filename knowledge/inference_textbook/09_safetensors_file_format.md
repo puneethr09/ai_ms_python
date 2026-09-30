@@ -141,6 +141,69 @@ An FP32 is 4 bytes: 1 sign bit, 8 exponent bits, 23 fraction bits. **BF16 keeps 
 
 To go back: **glue two zero bytes underneath** (shift left by 16 bits). numpy has no bfloat16 type, so you'll do this with integer arrays and a `.view`. That's the tools class.
 
+### 4a. Reading a BF16 by hand: the embedding's first weight
+
+**Step 1: the bytes on disk.** At byte 32,288 (the start of the embedding) the file holds `25 bc 2c 3d 22 3c …`. Each weight is 2 bytes, so the first one is `25 bc`.
+
+**Step 2: undo little-endian.** The first byte is the least significant, so the 16-bit number is `0xBC25`.
+
+**Step 3: write out the 16 bits and cut them into three fields.**
+
+```
+0xBC25 =  1    0111 1000    010 0101
+          │    └ 8 bits ┘   └ 7 bits ┘
+        sign    exponent     fraction
+         =1     =120         =37
+```
+
+**Step 4: apply the rule.**
+
+```
+value = (−1)^sign × (1 + fraction/128) × 2^(exponent − 127)
+      = −1        × (1 + 37/128)       × 2^(120 − 127)
+      = −1        × 1.2890625          × 1/128
+      = −0.01007080078125
+```
+
+- **sign:** 0 means positive, 1 means negative.
+- **exponent:** stored with a **bias of 127**, so that negative powers (small numbers) need no sign bit of their own. A stored 120 means 2^−7. A stored 127 means 2^0 = 1.
+- **fraction:** the digits after an **implicit leading 1**. 7 bits give 128 steps between one power of 2 and the next: 1, 1+1/128, 1+2/128, …
+
+It's scientific notation in base 2: `−1.2890625 × 2⁻⁷`, just like `−1.007 × 10⁻²`.
+
+The next two weights, the same way:
+
+| Bytes | 16-bit | sign | exp | frac | Value |
+| :--- | :--- | :-: | :-: | :-: | ---: |
+| `25 bc` | `0xBC25` | 1 | 120 | 37 | −(1+37/128) × 2⁻⁷ = **−0.010071** |
+| `2c 3d` | `0x3D2C` | 0 | 122 | 44 | +(1+44/128) × 2⁻⁵ = **+0.041992** |
+| `22 3c` | `0x3C22` | 0 | 120 | 34 | +(1+34/128) × 2⁻⁷ = **+0.009888** |
+
+These match the reference loader's `[-0.0101, 0.0420, 0.0099]`.
+
+### 4b. Converting to FP32: why "add zeros underneath" is exact
+
+FP32 uses **the same rule** with wider fields: 1 sign bit, the **same 8 exponent bits with the same bias 127**, and 23 fraction bits (so it divides by 2²³ instead of 2⁷).
+
+```
+BF16:  1 01111000 0100101
+FP32:  1 01111000 0100101 0000000000000000
+       └─ the same 16 bits ─┘└─ 16 new zeros ─┘
+```
+
+Field by field:
+- **sign:** the same bit, 1.
+- **exponent:** the same 8 bits, 120. That's why BF16 and FP32 have the same range.
+- **fraction:** `0100101` followed by 16 zeros. As a 23-bit fraction that's 37 × 2¹⁶ / 2²³ = 37/128. The zeros add nothing, just as 0.37 = 0.3700000.
+
+So the value is identical, and the conversion is exact: no rounding, nothing gained, nothing lost. As an operation it's `0xBC25 << 16 = 0xBC250000`.
+
+**On disk (little-endian), the FP32 bytes are `00 00 25 bc`:** the new zero bytes are the least significant, so they come **first**. That's why the byte-level version is `bytes(2) + w`, not `w + bytes(2)`.
+
+The reverse (FP32 → BF16) *does* lose information, because it throws away the bottom 16 fraction bits. Real converters round rather than chop. You only need the lossless direction in Phase 1.
+
+**Special cases** (for recognising them, not needed in Phase 1): exponent all zeros with fraction 0 is ±0.0 (smaller values with exponent 0 are "subnormals", which have no implicit 1). Exponent all ones (255) means ±infinity or NaN.
+
 ## 5. Why this format, and why it matters for inference
 
 - **Safety:** the older `.bin`/`.pt` format is a Python **pickle**, and loading one can run arbitrary code: a downloaded model could run code on your machine. safetensors is pure data. That's why it became the standard.
