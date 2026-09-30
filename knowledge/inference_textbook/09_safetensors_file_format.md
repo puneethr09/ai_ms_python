@@ -29,6 +29,39 @@ Everything in chapters 2–7 (Wq, Wk, Wv, Wo, gate, up, down, the dictionary) is
 
 ---
 
+## 0. The model folder: which file is which
+
+The download gives you a folder, not one file. The files are listed here in the order a word passes through them:
+
+```
+models/qwen2.5-0.5b/
+├── config.json              681 B   the model's shape: the "blueprint"
+├── generation_config.json   138 B   default settings for the generation loop
+├── tokenizer.json           7.0 MB  text ↔ token IDs: the full rulebook
+├── vocab.json               2.8 MB  ┐ the same tokenizer, split into two
+├── merges.txt               1.7 MB  ┘ older-style files (redundant)
+├── tokenizer_config.json    7.2 KB  special tokens + the chat template
+├── model.safetensors        988 MB  the 494M weights: the only big file
+└── .cache/                          download bookkeeping (ignore)
+```
+
+| File | What it is | Used in step |
+| :--- | :--- | :--- |
+| `config.json` | The shape numbers: `hidden_size: 896`, `num_hidden_layers: 24`, `num_attention_heads: 14`, `num_key_value_heads: 2`, `intermediate_size: 4864`, `rope_theta: 1000000`, `rms_norm_eps: 1e-06`, `tie_word_embeddings: true`. It's plain text and contains **no weights**. | 1.6 |
+| `model.safetensors` | The weights: 8-byte length, JSON header, raw BF16 numbers (this chapter) | **1.1** |
+| `tokenizer.json` | 151,643 regular tokens, 151,387 merge rules, 22 special tokens, and the regex that splits text ([Chapter 2](02_tokens_and_embeddings.md)) | 1.2 |
+| `vocab.json` + `merges.txt` | The same tokenizer in the older GPT-2 format. You only need one of them. | — |
+| `tokenizer_config.json` | Which IDs are special (end-of-text = 151643), and the **chat template** (`<\|im_start\|>user…`) | Later (chat, serving) |
+| `generation_config.json` | Loop defaults: `do_sample: false` (always pick the top word), stop at ID 151643, at most 2048 new tokens | 1.7 |
+
+**How to tell them apart at a glance:**
+- **Size.** The weights are always the huge one.
+- **Extension.** `.json` and `.txt` are text: open them in the editor. `.safetensors` is binary, so you need code or `xxd` to read it (`head -c 8 model.safetensors | xxd`).
+
+**Spare dictionary rows:** `config.json` says `vocab_size: 151936`, but the tokenizer has only 151,643 + 22 = 151,665 tokens. That leaves 271 rows that no text can ever produce. 151,936 = 1,187 × 128: the row count is a multiple of 128, which suits GPU matrix shapes, and it leaves room to add special tokens later without changing the tensor shapes.
+
+> **Lesson from Exercise B:** the first attempt opened `config.json` instead of `model.safetensors`. Python didn't complain: it turned the text `{\n  "arc` into the integer 7,165,896,756,295,633,531. Code that reads bytes never errors on the wrong file. **Always check against a number you already know** (`assert n == 32280`).
+
 ## 1. The file's layout
 
 ```
@@ -120,6 +153,21 @@ To go back: **glue two zero bytes underneath** (shift left by 16 bits). numpy ha
 ## 6. The tools (for Exercise B)
 
 Try each in a Python REPL before combining them.
+
+**Tool 0: find the file, and close it automatically**
+
+A relative path like `"learn_projects/..."` is resolved from the terminal's **current folder**, not from the script's folder, so it breaks when you run the script from somewhere else. Build the path from the script's own location instead:
+
+```python
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent     # the folder this script is in
+MODEL = HERE.parent / "models" / "qwen2.5-0.5b" / "model.safetensors"
+
+with open(MODEL, "rb") as f:               # "rb" = read raw bytes
+    first = f.read(8)
+# the file is closed here, even if something crashed inside
+```
 
 **Tool 1: read raw bytes**
 ```python

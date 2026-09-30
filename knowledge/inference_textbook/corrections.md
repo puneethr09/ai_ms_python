@@ -52,6 +52,7 @@ The pattern to watch: most of these are **a correct idea stretched too far**.
 | # | I believed | What's true | Chapter |
 | :--- | :--- | :--- | :--- |
 | 25 | Little-endian: reverse the hex digits (`187e` → `e781`). | Reverse the **bytes** (`18 7e` → `7e 18` = 32,280). A byte's two hex digits stay together. | [9](09_safetensors_file_format.md) |
+| 26 | `config.json` is where the model lives (it's the first file listed). | `config.json` is only the **shape** (896, 24 layers, …). The weights are in `model.safetensors`, the 988 MB file. Reading 8 bytes of the wrong file silently gives a nonsense number. | [9](09_safetensors_file_format.md) |
 
 ---
 
