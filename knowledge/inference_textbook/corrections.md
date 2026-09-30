@@ -53,6 +53,7 @@ The pattern to watch: most of these are **a correct idea stretched too far**.
 | :--- | :--- | :--- | :--- |
 | 25 | Little-endian: reverse the hex digits (`187e` → `e781`). | Reverse the **bytes** (`18 7e` → `7e 18` = 32,280). A byte's two hex digits stay together. | [9](09_safetensors_file_format.md) |
 | 26 | `config.json` is where the model lives (it's the first file listed). | `config.json` is only the **shape** (896, 24 layers, …). The weights are in `model.safetensors`, the 988 MB file. Reading 8 bytes of the wrong file silently gives a nonsense number. | [9](09_safetensors_file_format.md) |
+| 27 | BF16 is a hex representation, and converting it to decimal (`-0.01007080078125`) reveals more precision. | Hex is only **notation** for bits; BF16 is the **format** (1 sign, 8 exponent, 7 fraction bits). The long decimal is the *exact* value of `−165/2¹⁴`, but its neighbours are `−0.010010` and `−0.010132`, so only ~3 digits are meaningful. BF16 → FP32 adds zero bits: no information gained or lost. | [9](09_safetensors_file_format.md) |
 
 ---
 

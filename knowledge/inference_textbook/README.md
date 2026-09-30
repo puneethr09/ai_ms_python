@@ -35,7 +35,7 @@ This is the theory half of the [Inference From Scratch](../../learn_projects/inf
 | Page | Use it for |
 | :--- | :--- |
 | [Self-test flashcards](self_test.md) | 43 questions with hidden answers, grouped by chapter |
-| [Corrections log](corrections.md) | 26 things I believed that were wrong, and the fix. Read before interviews. |
+| [Corrections log](corrections.md) | 27 things I believed that were wrong, and the fix. Read before interviews. |
 | [Glossary](glossary.md) | Every term in one line, plus Qwen2.5-0.5B's numbers |
 | [Learning journal](learning_journal.md) | Honest assessment, topic status, open items |
 
