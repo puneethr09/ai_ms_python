@@ -202,6 +202,28 @@ So the value is identical, and the conversion is exact: no rounding, nothing gai
 
 The reverse (FP32 → BF16) *does* lose information, because it throws away the bottom 16 fraction bits. Real converters round rather than chop. You only need the lossless direction in Phase 1.
 
+### 4c. Why floats are built this way (and not "just store the number")
+
+16 bits give only 65,536 patterns. The question is which numbers they stand for.
+
+- **Plain integers** (0 to 65,535): no fractions at all, so −0.0101 is impossible.
+- **Fixed point** (say, always `integer / 10,000`): evenly spaced steps of 0.0001. A weight of 0.00003 **vanishes** to 0, 0.000071 is off by 40%, and an activation of 12.5 **doesn't fit** (the maximum is about ±3.2).
+- **Floating point** = scientific notation in base 2: the **exponent says how big**, the **fraction says which digits**. The spacing grows with the number's size, so the **relative** error is about the same (~0.4% for BF16) everywhere from 10⁻³⁸ to 10³⁸. Neural nets have tiny weights and large activations together, so this is what they need.
+
+Why each piece of the rule looks the way it does:
+- **`fraction / 128`**: the digits after the binary point. 7 bits → 2⁷ = 128, just like 3 decimal digits `289` mean 289/1000. FP32 has 23 bits, so it divides by 2²³; that's the whole precision difference.
+- **`1 +`**: in binary scientific notation the leading digit is always 1, so it isn't stored (a free extra bit).
+- **`exponent − 127`** (the **bias**): the 8-bit field stores 0–255, but negative powers are needed too. Shifting by 127 gives −126 to +127 without a separate sign bit, and larger floats get larger bit patterns, so hardware can compare them almost like integers.
+
+| Format | Exponent bits | Fraction bits | Max value | Digits |
+| :--- | :-: | :-: | :--- | :-: |
+| FP16 | 5 | 10 | 65,504 | ~3.3 |
+| BF16 | 8 | 7 | ~3.4 × 10³⁸ (same as FP32) | ~2.4 |
+
+BF16 gave up digits so that it never overflows: for neural nets, **range matters more than digits**.
+
+**Looking ahead (Phase 3):** INT8/INT4 quantization goes back to fixed point, which is small and fast but has the "vanishes / doesn't fit" problem. It fixes that with one **scale per block** of weights: a shared exponent.
+
 **Special cases** (for recognising them, not needed in Phase 1): exponent all zeros with fraction 0 is ±0.0 (smaller values with exponent 0 are "subnormals", which have no implicit 1). Exponent all ones (255) means ±infinity or NaN.
 
 ## 5. Why this format, and why it matters for inference
